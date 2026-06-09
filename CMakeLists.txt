@@ -107,6 +107,7 @@ include(cmake/CodegenTargets.cmake)
 set(SKATE3_COMMON_SOURCES
     src/exception_compat.cpp
     src/skate3_app_common.cpp
+    src/skate3_fov.cpp
     src/skate3_iso_installer.cpp
     src/skate3_user_settings.cpp
 )

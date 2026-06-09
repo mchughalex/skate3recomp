@@ -1,6 +1,9 @@
 add_custom_target(generate-skate3
     COMMAND $<TARGET_FILE:rex::rexglue> codegen
             "${CMAKE_CURRENT_BINARY_DIR}/manifests/skate3.toml"
+    COMMAND "${CMAKE_COMMAND}"
+            "-DSKATE3_SOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/cmake/ApplySkate3CodegenPatches.cmake"
     WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
     COMMENT "Generating recompiled code for default.xex"
     VERBATIM

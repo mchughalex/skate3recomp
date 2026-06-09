@@ -2,6 +2,8 @@
 /out/
 /build/
 /generated/
+/generated.backup-*/
+/tools/
 
 # Local game dump and retail media. Users must provide their own copy.
 /game/
@@ -29,3 +31,6 @@ CMakeUserPresets.json
 /.vs/
 /.vscode/
 /.cache/
+/scripts/__pycache__/
+/scripts/extract_eb_big.py
+/scripts/extract_embedded_rx2.py

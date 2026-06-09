@@ -16,6 +16,20 @@ mnk_mode = false
 mnk_capture_mouse = false
 
 fullscreen = true
+# Automatically derive an ultrawide host aspect from the fullscreen monitor on
+# Windows, or from an explicit window_width/window_height pair. Leave
+# video_mode_width and video_mode_height at defaults for this path.
+skate3_ultrawide = false
+skate3_field_of_view = 60.0
+skate3_ultrawide_base_height = 720
+skate3_ultrawide_hor_plus = true
+skate3_ultrawide_hor_plus_scale = 0.0
+# Risky diagnostics for narrowing texture/visibility pop-in. Enable one at a
+# time when testing.
+skate3_ultrawide_force_main_visibility_flags = true
+skate3_ultrawide_ignore_streamer_texture_invalidations = false
+# window_width = 3440
+# window_height = 1440
 vsync = false
 video_mode_refresh_rate = 60.0
 resolution_scale = 2

@@ -158,8 +158,15 @@ def render_rx2(
     return output_path
 
 
+def display_source_name(source: Path, root: Path | None) -> str:
+    try:
+        return str(source.relative_to(root)) if root else str(source)
+    except ValueError:
+        return str(source)
+
+
 def write_texture_page(
-    rendered: list[tuple[Path, Path]],
+    rendered: list[tuple[Path, Path, str]],
     output_dir: Path,
     page_number: int,
     page_count: int,
@@ -182,18 +189,18 @@ def write_texture_page(
     if page_number < page_count:
         rows.append(f"<a href='page-{page_number + 1:03d}.html'>Next</a>")
     rows.append("</div><div class='grid'>")
-    for source, image in rendered:
+    for source, image, label in rendered:
         rel_image = image.relative_to(output_dir)
         rows.append(
             f"<div class='item'><img loading='lazy' src='{html.escape(str(rel_image))}'>"
-            f"<p><code>{html.escape(source.name)}</code></p></div>"
+            f"<p><code>{html.escape(label)}</code></p></div>"
         )
     rows.append("</div>")
     (output_dir / page_name).write_text("\n".join(rows), encoding="utf-8")
     return page_name
 
 
-def write_index(rendered: list[tuple[Path, Path]], output_dir: Path, page_size: int) -> None:
+def write_index(rendered: list[tuple[Path, Path, str]], output_dir: Path, page_size: int) -> None:
     page_size = max(1, page_size)
     pages = [rendered[offset : offset + page_size] for offset in range(0, len(rendered), page_size)]
     page_names = [
@@ -297,11 +304,11 @@ def main() -> int:
     output_dir = Path(args.output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    rendered: list[tuple[Path, Path]] = []
+    rendered: list[tuple[Path, Path, str]] = []
     for source in sources:
         image = render_rx2(source, output_dir, source_root, args.layout)
         if image:
-            rendered.append((source, image))
+            rendered.append((source, image, display_source_name(source, source_root)))
             if args.verbose:
                 print(f"Rendered {source.name}")
         if args.limit and len(rendered) >= args.limit:

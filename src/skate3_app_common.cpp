@@ -1,5 +1,6 @@
 #include "skate3_app_common.h"
 
+#include "skate3_fov.h"
 #include "skate3_iso_installer.h"
 #include "skate3_user_settings.h"
 
@@ -12,6 +13,7 @@
 #include <fstream>
 #include <iomanip>
 #include <memory>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <string_view>
@@ -39,6 +41,8 @@
 #include <rex/filesystem/devices/stfs_container_device.h>
 #include <rex/filesystem/devices/host_path_device.h>
 #include <rex/filesystem/vfs.h>
+#include <rex/graphics/flags.h>
+#include <rex/graphics/ultrawide_debug.h>
 #include <rex/input/input_system.h>
 #include <rex/kernel/xam/module.h>
 #include <rex/logging.h>
@@ -51,8 +55,10 @@
 #include <rex/system/xam/content_manager.h>
 #include <rex/system/xam/user_profile.h>
 #include <rex/system.h>
+#include <rex/ui/flags.h>
 #include <rex/ui/keybinds.h>
 #include <rex/ui/overlay/simple_settings_overlay.h>
+#include <rex/ui/overlay/ultrawide_targets_overlay.h>
 
 #include <imgui.h>
 #include <toml++/toml.hpp>
@@ -71,6 +77,46 @@ REXCVAR_DEFINE_STRING(skate3_dlc_root, "", "Skate 3",
                       "Directory containing Skate 3 DLC package files");
 REXCVAR_DEFINE_BOOL(skate3_auto_install_dlc, true, "Skate 3",
                     "Install DLC package files found in configured DLC folders");
+REXCVAR_DEFINE_BOOL(skate3_ultrawide, false, "Skate 3",
+                    "Automatically derive an ultrawide guest video mode from the host display");
+REXCVAR_DEFINE_DOUBLE(skate3_field_of_view, 60.0, "Skate 3",
+                      "Gameplay camera field of view in degrees")
+    .range(40.0, 120.0);
+REXCVAR_DEFINE_INT32(skate3_ultrawide_base_height, 720, "Skate 3",
+                     "Guest video mode height used when deriving ultrawide modes")
+    .range(480, 2160)
+    .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
+REXCVAR_DEFINE_BOOL(skate3_ultrawide_hor_plus, true, "Skate 3",
+                    "Apply Hor+ clip-space correction for ultrawide video modes");
+REXCVAR_DEFINE_DOUBLE(skate3_ultrawide_hor_plus_scale, 0.0, "Skate 3",
+                      "Manual Hor+ X scale override (0 = derive from host aspect)")
+    .range(0.0, 4.0)
+    .lifecycle(rex::cvar::Lifecycle::kRequiresRestart);
+REXCVAR_DEFINE_BOOL(skate3_ultrawide_disable_ndc_correction, false, "Skate 3",
+                    "Diagnostic: disable the GPU NDC Hor+ correction while preserving guest-side "
+                    "ultrawide diagnostics");
+REXCVAR_DEFINE_BOOL(skate3_ultrawide_trace_draws, false, "Skate 3",
+                    "Diagnostic: collect live draw fingerprints for the F7 ultrawide overlay");
+REXCVAR_DEFINE_BOOL(skate3_ultrawide_object_stage_trace_to_disk, false, "Skate 3",
+                    "Diagnostic: write object render-stage transition summaries to disk");
+REXCVAR_DEFINE_BOOL(skate3_ultrawide_object_stage_trace_continuous, false, "Skate 3",
+                    "Diagnostic: continuously trace object render-stage summaries");
+REXCVAR_DEFINE_INT32(skate3_ultrawide_object_stage_trace_frames_remaining, 0, "Skate 3",
+                     "Diagnostic: trace this many object render-stage frames")
+    .range(0, 1000000);
+REXCVAR_DEFINE_INT32(skate3_ultrawide_object_stage_marker, 0, "Skate 3",
+                     "Diagnostic: mark the next object-stage frame (1 visible, 2 invisible)")
+    .range(0, 2);
+REXCVAR_DEFINE_INT32(skate3_ultrawide_object_stage_missing_limit, 256, "Skate 3",
+                     "Diagnostic: maximum missing-main objects to log per object-stage frame")
+    .range(0, 4096);
+REXCVAR_DEFINE_BOOL(skate3_ultrawide_force_main_visibility_flags, false, "Skate 3",
+                    "Force main render object visibility flags while Hor+ ultrawide is active");
+REXCVAR_DEFINE_BOOL(skate3_ultrawide_widen_game_frustum, true, "Skate 3",
+                    "Widen the game-side main-world cull frustum to match the ultrawide view");
+REXCVAR_DEFINE_DOUBLE(skate3_ultrawide_target_aspect, 0.0, "Skate 3",
+                      "Derived host display aspect for ultrawide presentation (0 = disabled)")
+    .range(0.0, 8.0);
 
 namespace {
 
@@ -137,6 +183,141 @@ void SetRestartArgument(std::vector<std::string>& args, std::string name, std::s
 constexpr std::string_view kUserDirectoryName = "skate3";
 constexpr std::string_view kSettingsFilename = "settings.toml";
 constexpr std::string_view kDlcDirectoryName = "dlc";
+constexpr double kSixteenNineAspect = 16.0 / 9.0;
+constexpr double kUltrawideAspectEpsilon = 0.01;
+
+struct DisplaySize {
+  int32_t width = 0;
+  int32_t height = 0;
+};
+
+#if defined(_WIN32)
+BOOL CALLBACK CollectMonitorCallback(HMONITOR monitor_handle, HDC, LPRECT, LPARAM data) {
+  auto* monitors = reinterpret_cast<std::vector<HMONITOR>*>(data);
+  monitors->push_back(monitor_handle);
+  return TRUE;
+}
+
+HMONITOR GetConfiguredMonitorHandle() {
+  const int32_t monitor_index = REXCVAR_GET(monitor);
+  if (monitor_index > 0) {
+    std::vector<HMONITOR> monitors;
+    EnumDisplayMonitors(nullptr, nullptr, CollectMonitorCallback,
+                        reinterpret_cast<LPARAM>(&monitors));
+    if (monitor_index <= static_cast<int32_t>(monitors.size())) {
+      return monitors[monitor_index - 1];
+    }
+  }
+
+  POINT origin{0, 0};
+  return MonitorFromPoint(origin, MONITOR_DEFAULTTOPRIMARY);
+}
+
+std::optional<DisplaySize> QueryFullscreenMonitorSize() {
+  HMONITOR monitor_handle = GetConfiguredMonitorHandle();
+  if (!monitor_handle) {
+    return std::nullopt;
+  }
+
+  MONITORINFO monitor_info{};
+  monitor_info.cbSize = sizeof(monitor_info);
+  if (!GetMonitorInfo(monitor_handle, &monitor_info)) {
+    return std::nullopt;
+  }
+
+  const int32_t width = monitor_info.rcMonitor.right - monitor_info.rcMonitor.left;
+  const int32_t height = monitor_info.rcMonitor.bottom - monitor_info.rcMonitor.top;
+  if (width <= 0 || height <= 0) {
+    return std::nullopt;
+  }
+  return DisplaySize{width, height};
+}
+#else
+std::optional<DisplaySize> QueryFullscreenMonitorSize() {
+  return std::nullopt;
+}
+#endif
+
+std::optional<DisplaySize> ResolveUltrawideTargetDisplaySize() {
+  if (rex::cvar::HasNonDefaultValue("resolution")) {
+    return std::nullopt;
+  }
+
+  if (REXCVAR_GET(fullscreen)) {
+    return QueryFullscreenMonitorSize();
+  }
+
+  const int32_t configured_window_width = REXCVAR_GET(window_width);
+  const int32_t configured_window_height = REXCVAR_GET(window_height);
+  if (rex::cvar::HasNonDefaultValue("window_width") &&
+      rex::cvar::HasNonDefaultValue("window_height") && configured_window_width > 0 &&
+      configured_window_height > 0) {
+    return DisplaySize{configured_window_width, configured_window_height};
+  }
+
+  return std::nullopt;
+}
+
+void ApplyUltrawideVideoDefaults() {
+  if (!REXCVAR_GET(skate3_ultrawide) ||
+      rex::cvar::HasNonDefaultValue("skate3_ultrawide_target_aspect")) {
+    return;
+  }
+
+  const std::optional<DisplaySize> target_size = ResolveUltrawideTargetDisplaySize();
+  if (!target_size || target_size->width <= 0 || target_size->height <= 0) {
+    return;
+  }
+
+  const double target_aspect =
+      static_cast<double>(target_size->width) / static_cast<double>(target_size->height);
+  if (target_aspect <= kSixteenNineAspect + kUltrawideAspectEpsilon) {
+    return;
+  }
+
+  rex::cvar::SetFlagByName("skate3_ultrawide_target_aspect", std::to_string(target_aspect));
+
+  if (!rex::cvar::HasNonDefaultValue("present_letterbox")) {
+    rex::cvar::SetFlagByName("present_letterbox", "true");
+  }
+}
+
+void DisableActiveUltrawideDiagnostics() {
+  constexpr std::string_view kFalseFlags[] = {
+      "skate3_ultrawide_trace_draws",
+      "skate3_ultrawide_object_stage_trace_to_disk",
+      "skate3_ultrawide_object_stage_trace_continuous",
+      "skate3_ultrawide_force_main_visibility_flags",
+      "skate3_ultrawide_texture_trace_bind_keys",
+      "skate3_ultrawide_texture_trace_scaled_resolve",
+      "skate3_ultrawide_ignore_streamer_texture_invalidations",
+      "skate3_ultrawide_screen_callback_tracking",
+      "skate3_ultrawide_fake_occlusion_queries",
+      "perf_draw_fingerprints",
+      "perf_keep_heavyweight_draw_diagnostics",
+      "trace_gpu_stream",
+  };
+  for (std::string_view flag : kFalseFlags) {
+    rex::cvar::SetFlagByName(std::string(flag), "false");
+  }
+
+  constexpr std::string_view kZeroFlags[] = {
+      "skate3_ultrawide_texture_trace_remaining",
+      "skate3_ultrawide_object_stage_trace_frames_remaining",
+      "skate3_ultrawide_object_stage_marker",
+      "vulkan_debug_log_frame_summaries_remaining",
+      "vulkan_debug_log_resolve_decisions_remaining",
+      "vulkan_debug_log_team_profile_background_candidates_remaining",
+      "vulkan_debug_log_team_profile_background_bindings_remaining",
+      "filesystem_debug_log_fe_asset_ops_remaining",
+      "filesystem_debug_log_team_profile_background_remaining",
+  };
+  for (std::string_view flag : kZeroFlags) {
+    rex::cvar::SetFlagByName(std::string(flag), "0");
+  }
+
+  rex::cvar::SetFlagByName("skate3_ultrawide_fake_occlusion_sample_count", "1000");
+}
 
 std::filesystem::path DefaultDocumentsUserRoot() {
   return rex::filesystem::GetUserFolder() / std::string(kUserDirectoryName);
@@ -342,6 +523,13 @@ void Skate3BaseApp::OnConfigurePaths(rex::PathConfig& paths) {
   ConfigureSkate3UserPaths(paths, user_settings_path_, profiles_path_);
   config_path_ = paths.config_path;
   LoadAndNormalizeSimpleSettings(user_settings_path_, config_path_);
+  Skate3InitializeFieldOfViewOverride();
+  ApplyUltrawideVideoDefaults();
+  if (!rex::graphics::ultrawide_debug::LoadTargets(paths.cache_root /
+                                                   "skate3_ultrawide_targets.toml")) {
+    rex::graphics::ultrawide_debug::LoadBuiltInSkate3Classifier();
+  }
+  DisableActiveUltrawideDiagnostics();
 }
 
 void Skate3BaseApp::OnConfigureFonts(ImFontAtlas* atlas) {
@@ -449,6 +637,10 @@ void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
   rex::ui::RegisterBind("bind_skate3_menu_alt", "F1", "Skate 3 settings alternate", [this] {
     ToggleSimpleSettings();
   });
+  rex::ui::RegisterBind("bind_skate3_ultrawide_targets", "F7",
+                        "Skate 3 ultrawide targets", [this] {
+                          ToggleUltrawideTargets();
+                        });
   rex::ui::RegisterBind("bind_skate3_save_draw_fingerprints", "F8",
                         "Save draw fingerprint log", [this] {
                           SaveDrawFingerprintLog();
@@ -506,11 +698,13 @@ void Skate3BaseApp::OnPostSetup() {
 void Skate3BaseApp::OnShutdown() {
   rex::ui::UnregisterBind("bind_skate3_menu");
   rex::ui::UnregisterBind("bind_skate3_menu_alt");
+  rex::ui::UnregisterBind("bind_skate3_ultrawide_targets");
   rex::ui::UnregisterBind("bind_skate3_save_draw_fingerprints");
   rex::ui::UnregisterBind("bind_skate3_log_debug_marker");
   rex::ui::UnregisterBind("bind_skate3_log_user_marker");
   ApplyGameplayCursorMode();
   simple_settings_dialog_.reset();
+  ultrawide_targets_dialog_.reset();
 }
 
 void Skate3BaseApp::ToggleSimpleSettings() {
@@ -586,6 +780,24 @@ void Skate3BaseApp::ToggleSimpleSettings() {
           std::move(close_settings), std::move(close_game), std::move(restart_game));
   ApplySettingsCursorMode();
   simple_settings_dialog_->Show();
+}
+
+void Skate3BaseApp::ToggleUltrawideTargets() {
+  if (ultrawide_targets_dialog_) {
+    if (ultrawide_targets_dialog_->visible()) {
+      ultrawide_targets_dialog_->Hide();
+    } else {
+      ApplySettingsCursorMode();
+      ultrawide_targets_dialog_->Show();
+    }
+    return;
+  }
+
+  const auto export_path = cache_root() / "skate3_ultrawide_targets.toml";
+  ultrawide_targets_dialog_ = std::make_unique<rex::ui::UltrawideTargetsDialog>(
+      imgui_drawer(), export_path, [this]() { ApplyGameplayCursorMode(); });
+  ApplySettingsCursorMode();
+  ultrawide_targets_dialog_->Show();
 }
 
 void Skate3BaseApp::ApplySettingsCursorMode() {
@@ -714,19 +926,8 @@ void Skate3BaseApp::LogUserMarker() {
 
 void Skate3BaseApp::LogDebugMarker() {
   const uint32_t marker = debug_marker_count_.fetch_add(1, std::memory_order_relaxed) + 1;
-  rex::cvar::SetFlagByName("vulkan_debug_log_frame_summaries_remaining", "36000");
-  rex::cvar::SetFlagByName("vulkan_debug_frame_summary_interval_frames", "300");
-  rex::cvar::SetFlagByName("vulkan_debug_log_resolve_decisions_remaining", "10000");
-  rex::cvar::SetFlagByName("vulkan_debug_log_team_profile_background_candidates_remaining",
-                           "1000");
-  rex::cvar::SetFlagByName("vulkan_debug_log_team_profile_background_bindings_remaining",
-                           "256");
-  rex::cvar::SetFlagByName("filesystem_debug_log_fe_asset_ops_remaining", "10000");
-  rex::cvar::SetFlagByName("filesystem_debug_log_team_profile_background_remaining", "200");
-  REXLOG_WARN(
-      "USER DEBUG MARKER #{}: F9 pressed; enabled Vulkan frame summaries, resolve diagnostics, "
-      "FE asset diagnostics, and team_profile_background_0 tracing",
-      marker);
+  DisableActiveUltrawideDiagnostics();
+  REXLOG_WARN("USER DEBUG MARKER #{}: F9 pressed; active diagnostics disabled", marker);
 }
 
 void Skate3BaseApp::ApplySelectedProfileToRuntime() {

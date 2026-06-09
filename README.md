@@ -48,16 +48,13 @@ Gameplay (click to go to YouTube):
 6. Wait for the installer to extract the game files.
 7. Click "Start Game".
 
-### DLC
+## Installing DLC
 
-Skate3Recomp does not include Skate 3 DLC files. To use DLC, provide package
-files from your own legally obtained Xbox 360 DLC.
+To use DLC, you must provide package files from your own legally obtained Xbox 360 DLC.
 
-Create a `dlc` folder beside the executable, inside the installed game folder,
-or in the Skate3Recomp user data folder. Place the DLC package files in that
-folder and start the game. Skate3Recomp will validate matching Skate 3
-marketplace packages and install them into the local content store
-automatically.
+Create a `dlc` folder either beside the executable, inside the installed game folder,
+or in the user data folder. Place the DLC package files in that
+folder and start the game.
 
 ## Controls
 
@@ -201,6 +198,10 @@ SKATE3_MNK=1 ./scripts/run-linux.sh
 ```
 
 Fullscreen is on by default. Pass `--no-fullscreen` to start windowed.
+On Windows, ultrawide displays are detected automatically in fullscreen. For an
+ultrawide window, pass matching `--window_width` and `--window_height` values;
+the renderer keeps the guest frontbuffer at a stable 16:9 size while applying
+ultrawide presentation and Hor+ correction without stretching.
 
 To run the Linux development executable directly:
 

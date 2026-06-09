@@ -1,0 +1,3444 @@
+# Skate 3 ultrawide NDC target selection export
+# enabled targets are the draw groups currently receiving Hor+ NDC correction
+
+apply_mode = "target_list"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 48074
+applied_draw_count = 48074
+hash = "0xA78541591A629661"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x09020258"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x0000000F"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0xA4A965C189287B99"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 48073
+applied_draw_count = 48073
+hash = "0x9D52F6177C7B389D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x0000000F"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0xA4A965C189287B99"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 109540
+applied_draw_count = 109540
+hash = "0xBFD1461001CB97E4"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x08000230"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x0DFDF1BCC0E7B56D"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 474652
+applied_draw_count = 474652
+hash = "0xC205003194EFBC71"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x08000230"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x28D0A573402806EB"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 26080
+applied_draw_count = 26080
+hash = "0xD878108EB66E9B28"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x08000230"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x07CF21EDB84C9E22"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 125184
+applied_draw_count = 125184
+hash = "0xF9AB52AE558D3F50"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x04020118"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 7730
+applied_draw_count = 7730
+hash = "0x076AF30F69242406"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x04020118"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 7730
+applied_draw_count = 7730
+hash = "0xA4EF713C0B27236D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x08000230"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 7730
+applied_draw_count = 7730
+hash = "0x8197FF5E7840DA63"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x9971A6822FCF2DD2"
+pixel_shader_hash = "0x12049EA773BAF206"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 45524
+applied_draw_count = 45524
+hash = "0xCE27E0AA3C30B48A"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x01799B5C04C8EFE8"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0xDD4117074EF2EAA6"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1F005A21696CC37E"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0xFDC400257C26BEFC"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x38B43E35C163614C"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 31593
+applied_draw_count = 31593
+hash = "0x61EFEEA3DF226046"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1153D3552EF6E624"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 23190
+applied_draw_count = 23190
+hash = "0x40E624D71F989930"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x0C020320"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 23190
+applied_draw_count = 23190
+hash = "0xEF3B5EA129E40669"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 7730
+applied_draw_count = 7730
+hash = "0xEB009E6404D91B5A"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x9971A6822FCF2DD2"
+pixel_shader_hash = "0x70E709E9650F8CC0"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 7730
+applied_draw_count = 7730
+hash = "0x30625B4C1DF99FE8"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x08000230"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x9971A6822FCF2DD2"
+pixel_shader_hash = "0x8E01B3337D22E487"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0xA9446AF4EF2988DA"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1F005A21696CC37E"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0xF82D5E2AA3448EC8"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x38B43E35C163614C"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 11201
+applied_draw_count = 11201
+hash = "0xCDB5E7DDBF3745FA"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1153D3552EF6E624"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 7730
+applied_draw_count = 7730
+hash = "0x586B971BC5301FD6"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x9971A6822FCF2DD2"
+pixel_shader_hash = "0xDCFF2237FACA6FA2"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 7730
+applied_draw_count = 7730
+hash = "0x5A53AE14E6682AF0"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x08000230"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x9971A6822FCF2DD2"
+pixel_shader_hash = "0x6D81B22A5A72F2F7"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 15876
+applied_draw_count = 15876
+hash = "0x9B7DAC17F3087CA7"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x8A6134DE7D8980C0"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0x56CF04EDC1C67AD2"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1F005A21696CC37E"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0x630D4F6C8FF3BAC3"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xC0A7FEA59D737772"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 15648
+applied_draw_count = 15648
+hash = "0xF3FB10C786C01BBF"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xAAE4AE2E54C97D0F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0x2B13F106B03A4C7D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x69162B400E55DAC4"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 5216
+hash = "0xE47983C5D73AB140"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x38B43E35C163614C"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 373224
+applied_draw_count = 373224
+hash = "0x0B7CE4C6F4A49838"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 70121
+applied_draw_count = 70121
+hash = "0x99340CC09E2F9371"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x8F9F6723F328A425"
+pixel_shader_hash = "0xAA0DF76CD5E0EDC6"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 407937
+applied_draw_count = 407937
+hash = "0xE4F667D1EF0C3541"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xA43EDAB8CF26AC43"
+pixel_shader_hash = "0x1C8C6412B70D4904"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 11673
+applied_draw_count = 11673
+hash = "0x4CC45A2F1E231172"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xA43EDAB8CF26AC43"
+pixel_shader_hash = "0x1C8C6412B70D4904"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 16025
+applied_draw_count = 16025
+hash = "0x6ACFCA21C84DD04F"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x0A020280"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 16025
+applied_draw_count = 16025
+hash = "0xEC8FBC04212C0A4B"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x0A020280"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000076"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 20962
+applied_draw_count = 20962
+hash = "0xD541A82D0F859592"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x09020258"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000076"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 20962
+applied_draw_count = 20962
+hash = "0xE5F9E8A8BD7B81FF"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120004B0"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000076"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 23859
+applied_draw_count = 23859
+hash = "0xE380D9E97118C6B7"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120004B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x156953004B00BE2F"
+pixel_shader_hash = "0x6122239794A98F31"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 32050
+applied_draw_count = 32050
+hash = "0xAB60CA4C0329178E"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x00800050"
+viewport = [0, 0, 64, 32]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x08016D40A0EF5371"
+pixel_shader_hash = "0x3A7C78D0EB806EE8"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 32050
+applied_draw_count = 32050
+hash = "0xD59F8C3273E11AB5"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x01800050"
+viewport = [0, 0, 144, 80]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x08016D40A0EF5371"
+pixel_shader_hash = "0x3A7C78D0EB806EE8"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 16025
+hash = "0x2769C85DCDEB8FDC"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x00800050"
+viewport = [0, 0, 64, 32]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x08016D40A0EF5371"
+pixel_shader_hash = "0xE12EB29D7EA6D021"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 16025
+hash = "0x79A2F6E528FFF85B"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x01800050"
+viewport = [0, 0, 144, 80]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x08016D40A0EF5371"
+pixel_shader_hash = "0xE12EB29D7EA6D021"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 16025
+hash = "0xE25A14DA07768B39"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x04800140"
+viewport = [0, 0, 576, 320]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x34FDABFF54D0767C"
+pixel_shader_hash = "0x670F9657E351B89B"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 443376
+applied_draw_count = 443376
+hash = "0xD899F54B1EFCB5C4"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 15642
+applied_draw_count = 15642
+hash = "0x1591D381BF0A7CE5"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2A6DB4A54C1D6A44"
+pixel_shader_hash = "0x06CA19234014B7CF"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 15642
+applied_draw_count = 15642
+hash = "0x199AA29FA7991FC5"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2A6DB4A54C1D6A44"
+pixel_shader_hash = "0xEFAEF20D9DD3A856"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 14403
+applied_draw_count = 14403
+hash = "0x85508A201CA4F08B"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x229B213C18BF3580"
+pixel_shader_hash = "0x002060C7FFA5DBEE"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 47844
+applied_draw_count = 47844
+hash = "0x01A2EDFB77F55C72"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xC186F78859736B49"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5215
+applied_draw_count = 5215
+hash = "0x4098E5BF99169505"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB814BA67EA32F032"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 95688
+applied_draw_count = 95688
+hash = "0x9D3ACA8E7E627D61"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708733"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xC186F78859736B49"
+pixel_shader_hash = "0xEB864605A91539ED"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 10430
+applied_draw_count = 10430
+hash = "0x96D40D4C80EFF24A"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708733"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB814BA67EA32F032"
+pixel_shader_hash = "0xE1D8B5E58C05821E"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 14130
+applied_draw_count = 14130
+hash = "0x1FC318709FD6C1D9"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4DA02D43D609305C"
+pixel_shader_hash = "0x826E70D1F5709AB4"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 5652
+applied_draw_count = 5652
+hash = "0x7154460DEA2784F2"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x87E91F0B7DE6C7A5"
+pixel_shader_hash = "0xBD90261648A8EE85"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 26595
+applied_draw_count = 26595
+hash = "0xD2593ADB4AABB99E"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4884B48A4C4D42BD"
+pixel_shader_hash = "0x7386295CA842ED62"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 14130
+applied_draw_count = 14130
+hash = "0xED4AE420F8A90FAF"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4DA02D43D609305C"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 5652
+applied_draw_count = 5652
+hash = "0xB3F551C98DA3B0D8"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x87E91F0B7DE6C7A5"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 26595
+applied_draw_count = 26595
+hash = "0xF2CC74A09A11CAB3"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4884B48A4C4D42BD"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 36505
+applied_draw_count = 36505
+hash = "0x15C0DC717C5BE5C0"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x129E7F5770905F10"
+pixel_shader_hash = "0x437E40C3B326C513"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 610912
+applied_draw_count = 610912
+hash = "0x50A5FDF3723B2EE6"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xBBD7F3BD8E43C865"
+pixel_shader_hash = "0x26A449F09A551230"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 5533
+applied_draw_count = 5533
+hash = "0xDD5AABF82064D371"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x11D7AC81789C78E2"
+pixel_shader_hash = "0x0D70BBC32834DD35"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 84066
+applied_draw_count = 84066
+hash = "0x34F99C310F21DAE1"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4DA02D43D609305C"
+pixel_shader_hash = "0x826E70D1F5709AB4"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 34416
+applied_draw_count = 34416
+hash = "0x623695D495D11C5A"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x87E91F0B7DE6C7A5"
+pixel_shader_hash = "0xBD90261648A8EE85"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 5137
+applied_draw_count = 5137
+hash = "0xEA1E4969126AB23C"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x5678306911DBFA21"
+pixel_shader_hash = "0x0BFC7C383593DB01"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 15411
+applied_draw_count = 15411
+hash = "0x05CC09312C3E9F9B"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB59486CC29609065"
+pixel_shader_hash = "0x300AB8E7F58DD49E"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 5137
+applied_draw_count = 5137
+hash = "0x66DE18BBF0EC8645"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xEECAE2FDF2D987A8"
+pixel_shader_hash = "0x903FD6B5FDBD396C"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 5137
+applied_draw_count = 5137
+hash = "0x771C5EDB6865E300"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x10807D45C83F929C"
+pixel_shader_hash = "0xAA010FA0ACB4A2DE"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 25209
+applied_draw_count = 25209
+hash = "0x0D8656F581B26A36"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4884B48A4C4D42BD"
+pixel_shader_hash = "0x7386295CA842ED62"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 104463
+applied_draw_count = 104463
+hash = "0x82D90DCCF0EF67D4"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x6D83BC72961EFDD6"
+pixel_shader_hash = "0x703CCA8334D5F0D3"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 20860
+applied_draw_count = 20860
+hash = "0x77FFFC7414262CCC"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x80F5E44CF8F8C0F6"
+pixel_shader_hash = "0x6A7FC4375C8A174E"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 640522
+applied_draw_count = 640522
+hash = "0x4DB8FFE5868CE91E"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB56724DBA4CA4FE0"
+pixel_shader_hash = "0xC24E796B8CA7A91A"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 72848
+applied_draw_count = 72848
+hash = "0x6FA9EAA188A8E9A8"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2645EEDA2D96AD00"
+pixel_shader_hash = "0x4E669779FCFA28A7"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 1393332
+applied_draw_count = 1393332
+hash = "0xD62FCC7C5DA7DF5F"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x3E6FCA0DE0B3A8C2"
+pixel_shader_hash = "0xB3F33593C6D09C78"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 238699
+applied_draw_count = 238699
+hash = "0xA2476D49450F3D33"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xA0BE8B27220B13DA"
+pixel_shader_hash = "0xAE440AA8E3BD1EFF"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 60660
+applied_draw_count = 60660
+hash = "0x11A78BDBB7A54683"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x843B72BABFC575D2"
+pixel_shader_hash = "0x273A3914C45D195F"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 152479
+applied_draw_count = 152479
+hash = "0x4878EFC57C23F637"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x77B1A22643B2D4A5"
+pixel_shader_hash = "0x2650312EFC7A723E"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 26075
+applied_draw_count = 26075
+hash = "0x3CBC4808BED3C0CE"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xF98383D7822FCD4B"
+pixel_shader_hash = "0xB8659B1565935E42"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 8182
+applied_draw_count = 8182
+hash = "0x157511950F5C4257"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x57FCA2530F71C768"
+pixel_shader_hash = "0x31E37C33EEAE5603"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 32388
+applied_draw_count = 32388
+hash = "0x67D5ABC6E2419EBC"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xFF866FD9D067A561"
+pixel_shader_hash = "0x31E37C33EEAE5603"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 618482
+applied_draw_count = 618482
+hash = "0x1CF9353AA1132855"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xBF42AC470AA4CE13"
+pixel_shader_hash = "0xFF772F11F9DA66C7"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 1039358
+applied_draw_count = 1039358
+hash = "0xC59FCB667E0B50CA"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB35C2C3AC53D594A"
+pixel_shader_hash = "0x59F928CA74FC1F1B"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 158600
+applied_draw_count = 158600
+hash = "0xD2B3995707485985"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2BA7E44E7E1A1176"
+pixel_shader_hash = "0x4CDED5DED927F9B0"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 1998058
+applied_draw_count = 1998058
+hash = "0x8B1DB6B090F019E4"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xF91B29D8FC044DBF"
+pixel_shader_hash = "0x959B4F51AB838BB0"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 63678
+applied_draw_count = 63678
+hash = "0x3F5A4F2F89867D02"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x112A2355CC0D704D"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 1992329
+applied_draw_count = 1992329
+hash = "0x1D77B495DAD1A0ED"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB4E21448711110DE"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 216381
+applied_draw_count = 216381
+hash = "0x576ABA2EB83FD092"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x9176F3F9F09C4B6D"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 250320
+applied_draw_count = 250320
+hash = "0xC4D3A56D246F5008"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x09020258"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 15642
+applied_draw_count = 15642
+hash = "0x3E9C933709DBFC34"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2A6DB4A54C1D6A44"
+pixel_shader_hash = "0x06CA19234014B7CF"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 15642
+applied_draw_count = 15642
+hash = "0x1043548A365028B4"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2A6DB4A54C1D6A44"
+pixel_shader_hash = "0xEFAEF20D9DD3A856"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 14403
+applied_draw_count = 14403
+hash = "0xE44B22B012480B7E"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x229B213C18BF3580"
+pixel_shader_hash = "0x002060C7FFA5DBEE"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 47844
+applied_draw_count = 47844
+hash = "0xDF2B9CC0644CF96B"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xC186F78859736B49"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 5215
+applied_draw_count = 5215
+hash = "0xE53ACE77F5E03E94"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB814BA67EA32F032"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 95688
+applied_draw_count = 95688
+hash = "0x07F4727750423C34"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708733"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xC186F78859736B49"
+pixel_shader_hash = "0xEB864605A91539ED"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 10430
+applied_draw_count = 10430
+hash = "0xBAF6F0A8238A1617"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708733"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB814BA67EA32F032"
+pixel_shader_hash = "0xE1D8B5E58C05821E"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 14130
+applied_draw_count = 14130
+hash = "0x95825DA3BEB63618"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4DA02D43D609305C"
+pixel_shader_hash = "0x826E70D1F5709AB4"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 5652
+applied_draw_count = 5652
+hash = "0xA86486AAEC6B8FD3"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x87E91F0B7DE6C7A5"
+pixel_shader_hash = "0xBD90261648A8EE85"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 26595
+applied_draw_count = 26595
+hash = "0x219888D0C81A4EBB"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4884B48A4C4D42BD"
+pixel_shader_hash = "0x7386295CA842ED62"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 14130
+applied_draw_count = 14130
+hash = "0xFE2CEB59D8971A5A"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4DA02D43D609305C"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 5652
+applied_draw_count = 5652
+hash = "0x6DBBC8AC52778C65"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x87E91F0B7DE6C7A5"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 26595
+applied_draw_count = 26595
+hash = "0xF8D6304318883E2E"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4884B48A4C4D42BD"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 36505
+applied_draw_count = 36505
+hash = "0x6F421B04AD229861"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x129E7F5770905F10"
+pixel_shader_hash = "0x437E40C3B326C513"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 610912
+applied_draw_count = 610912
+hash = "0xBE24F96A2F86A743"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xBBD7F3BD8E43C865"
+pixel_shader_hash = "0x26A449F09A551230"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 5533
+applied_draw_count = 5533
+hash = "0xBC63805B609732D4"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x11D7AC81789C78E2"
+pixel_shader_hash = "0x0D70BBC32834DD35"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 84066
+applied_draw_count = 84066
+hash = "0xF88AEB71252E4AC0"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4DA02D43D609305C"
+pixel_shader_hash = "0x826E70D1F5709AB4"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 34416
+applied_draw_count = 34416
+hash = "0x045001575D46C1BB"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x87E91F0B7DE6C7A5"
+pixel_shader_hash = "0xBD90261648A8EE85"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 5137
+applied_draw_count = 5137
+hash = "0xB48E7907D9CC5CDD"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x5678306911DBFA21"
+pixel_shader_hash = "0x0BFC7C383593DB01"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 15411
+applied_draw_count = 15411
+hash = "0x6C53B91F9E7CDEEA"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB59486CC29609065"
+pixel_shader_hash = "0x300AB8E7F58DD49E"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 5137
+applied_draw_count = 5137
+hash = "0x1A2A2338B4866624"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xEECAE2FDF2D987A8"
+pixel_shader_hash = "0x903FD6B5FDBD396C"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 5137
+applied_draw_count = 5137
+hash = "0xAD058C3644007689"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x10807D45C83F929C"
+pixel_shader_hash = "0xAA010FA0ACB4A2DE"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 25209
+applied_draw_count = 25209
+hash = "0xA376541F441E4FB3"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x4884B48A4C4D42BD"
+pixel_shader_hash = "0x7386295CA842ED62"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 104463
+applied_draw_count = 104463
+hash = "0x5B5BDF4A7233BCB5"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x6D83BC72961EFDD6"
+pixel_shader_hash = "0x703CCA8334D5F0D3"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 20860
+applied_draw_count = 20860
+hash = "0x1D397F204E732829"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x80F5E44CF8F8C0F6"
+pixel_shader_hash = "0x6A7FC4375C8A174E"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 640522
+applied_draw_count = 640522
+hash = "0x5E9A899407A60B07"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB56724DBA4CA4FE0"
+pixel_shader_hash = "0xC24E796B8CA7A91A"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 72848
+applied_draw_count = 72848
+hash = "0xBFF2A6E479D2494D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2645EEDA2D96AD00"
+pixel_shader_hash = "0x4E669779FCFA28A7"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 1393332
+applied_draw_count = 1393332
+hash = "0x0562682FA93BDFC6"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x3E6FCA0DE0B3A8C2"
+pixel_shader_hash = "0xB3F33593C6D09C78"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 238699
+applied_draw_count = 238699
+hash = "0x5933941C92C6ACE2"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xA0BE8B27220B13DA"
+pixel_shader_hash = "0xAE440AA8E3BD1EFF"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 60660
+applied_draw_count = 60660
+hash = "0x5490C50558B0A6FA"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x843B72BABFC575D2"
+pixel_shader_hash = "0x273A3914C45D195F"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 152479
+applied_draw_count = 152479
+hash = "0x8E3E16B4041D10A6"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x77B1A22643B2D4A5"
+pixel_shader_hash = "0x2650312EFC7A723E"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 26075
+applied_draw_count = 26075
+hash = "0x80D634DEEEFA3023"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xF98383D7822FCD4B"
+pixel_shader_hash = "0xB8659B1565935E42"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 8182
+applied_draw_count = 8182
+hash = "0x3B4A27CE871F46DE"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x57FCA2530F71C768"
+pixel_shader_hash = "0x31E37C33EEAE5603"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 32388
+applied_draw_count = 32388
+hash = "0xAFD8D05CE702C08D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xFF866FD9D067A561"
+pixel_shader_hash = "0x31E37C33EEAE5603"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 618482
+applied_draw_count = 618482
+hash = "0xFB8DCC055DF6E894"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xBF42AC470AA4CE13"
+pixel_shader_hash = "0xFF772F11F9DA66C7"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 1039358
+applied_draw_count = 1039358
+hash = "0x86158F7A9968A9FF"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB35C2C3AC53D594A"
+pixel_shader_hash = "0x59F928CA74FC1F1B"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 158600
+applied_draw_count = 158600
+hash = "0x546215D3B88C4748"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x2BA7E44E7E1A1176"
+pixel_shader_hash = "0x4CDED5DED927F9B0"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 1998058
+applied_draw_count = 1998058
+hash = "0xF6B8FF0D0BDCD5AD"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xF91B29D8FC044DBF"
+pixel_shader_hash = "0x959B4F51AB838BB0"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 63678
+applied_draw_count = 63678
+hash = "0x4F1CF2D9F10DDC4F"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x112A2355CC0D704D"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 1992329
+applied_draw_count = 1992329
+hash = "0x67D152C6CBD00FD8"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB4E21448711110DE"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 216381
+applied_draw_count = 216381
+hash = "0x09BC09F4487FDEEF"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x9176F3F9F09C4B6D"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 374808
+applied_draw_count = 374808
+hash = "0xEEAE693F419ED9C4"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0xA4A965C189287B99"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 34
+applied_draw_count = 34
+hash = "0xC4EC310C78501C89"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x11D7AC81789C78E2"
+pixel_shader_hash = "0x0D70BBC32834DD35"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 34
+applied_draw_count = 34
+hash = "0x57C306778FFCE634"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x11D7AC81789C78E2"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 34
+applied_draw_count = 34
+hash = "0x7E8329B3B34B568C"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x11D7AC81789C78E2"
+pixel_shader_hash = "0x0D70BBC32834DD35"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 34
+applied_draw_count = 34
+hash = "0x9AF67C1814B20861"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x11D7AC81789C78E2"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 57
+applied_draw_count = 57
+hash = "0xBCF17602372C8923"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x768D0C1832BAA99F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 114
+applied_draw_count = 114
+hash = "0x863A82C331CA4E7A"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xDD8686FDE7D4FE2F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 85
+applied_draw_count = 85
+hash = "0xA1039E2BA9F6F0F2"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1153D3552EF6E624"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 78
+applied_draw_count = 0
+hash = "0xD30D492BB72A8E84"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x5678306911DBFA21"
+pixel_shader_hash = "0x0BFC7C383593DB01"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 234
+applied_draw_count = 0
+hash = "0x6C53DC64C88E5653"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB59486CC29609065"
+pixel_shader_hash = "0x300AB8E7F58DD49E"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 78
+applied_draw_count = 0
+hash = "0x112DABFB9C0D2C5D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xEECAE2FDF2D987A8"
+pixel_shader_hash = "0x903FD6B5FDBD396C"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 78
+applied_draw_count = 0
+hash = "0x75445340AA61B6B8"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x10807D45C83F929C"
+pixel_shader_hash = "0xAA010FA0ACB4A2DE"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 78
+applied_draw_count = 0
+hash = "0xFBFF33846B090543"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x5678306911DBFA21"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 234
+applied_draw_count = 0
+hash = "0x19B440C9ECEB7000"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB59486CC29609065"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 78
+applied_draw_count = 0
+hash = "0x7A1B51CF16B6E6BA"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xEECAE2FDF2D987A8"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = true
+draw_count = 78
+applied_draw_count = 0
+hash = "0xF122FFFE0AC6ACA0"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 640]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x10807D45C83F929C"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 78
+applied_draw_count = 78
+hash = "0x46DAB5A8908F95E5"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x5678306911DBFA21"
+pixel_shader_hash = "0x0BFC7C383593DB01"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 234
+applied_draw_count = 234
+hash = "0x3F49FEE14362C5E2"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB59486CC29609065"
+pixel_shader_hash = "0x300AB8E7F58DD49E"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 78
+applied_draw_count = 78
+hash = "0x69EF120F538756DC"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xEECAE2FDF2D987A8"
+pixel_shader_hash = "0x903FD6B5FDBD396C"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 78
+applied_draw_count = 78
+hash = "0xEADF80DF6BCFBDA1"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000007"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x10807D45C83F929C"
+pixel_shader_hash = "0xAA010FA0ACB4A2DE"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 78
+applied_draw_count = 78
+hash = "0x130AEC24E5FEB916"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x5678306911DBFA21"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 234
+applied_draw_count = 234
+hash = "0x544BEB932F0B2CCD"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB59486CC29609065"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 78
+applied_draw_count = 78
+hash = "0x457ECAD3E8859627"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xEECAE2FDF2D987A8"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = true
+draw_count = 78
+applied_draw_count = 78
+hash = "0xD465D0FF609B8C01"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x00000000"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x10807D45C83F929C"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = true
+default_enabled = false
+shadow_candidate = false
+draw_count = 191520
+applied_draw_count = 191520
+hash = "0x992F65716DDE5AB0"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120104B0"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0xA4A965C189287B99"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 2981
+applied_draw_count = 2981
+hash = "0x47CEC4DBD2618777"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700732"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x3D5BF97DD0CF2BF4"
+pixel_shader_hash = "0xB1592798F0CD1839"
+
+[[target]]
+enabled = true
+default_enabled = true
+shadow_candidate = false
+draw_count = 15
+applied_draw_count = 15
+hash = "0x16721B512CC8E52A"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700736"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xE91029D930637F6E"
+pixel_shader_hash = "0x38818B3E2ED482F4"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 26080
+applied_draw_count = 0
+hash = "0xA2D3BF5F1FAE89A5"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x08000230"
+viewport = [0, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x5AB7345B9857FD4B"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 55058
+applied_draw_count = 0
+hash = "0x6F2FE2DB5E2C9D9B"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x8A6134DE7D8980C0"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 0
+hash = "0x3819C68257AAB4A7"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xC0A7FEA59D737772"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 15648
+applied_draw_count = 0
+hash = "0x161CCBE6FB7FA2CB"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xAAE4AE2E54C97D0F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 0
+hash = "0x0C945E0D516ACB09"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x69162B400E55DAC4"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 17988
+applied_draw_count = 0
+hash = "0x593760193C97EA86"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xDD8686FDE7D4FE2F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 5560
+applied_draw_count = 0
+hash = "0x1760A25BDB3C3A8F"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x768D0C1832BAA99F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 32618
+applied_draw_count = 0
+hash = "0xF43F611A283B53B4"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [2048, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x3F7D7B06780F7147"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 38763
+applied_draw_count = 0
+hash = "0xD760920DBAB9A3BF"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x8A6134DE7D8980C0"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 0
+hash = "0x26BDC6C599B4969B"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xC0A7FEA59D737772"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 15648
+applied_draw_count = 0
+hash = "0x0B1AAB009E382577"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xAAE4AE2E54C97D0F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 5216
+applied_draw_count = 0
+hash = "0xA965E653AFB7AA55"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x69162B400E55DAC4"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 5560
+applied_draw_count = 0
+hash = "0xCF98B5A98C16103B"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x768D0C1832BAA99F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 11470
+applied_draw_count = 0
+hash = "0x1287298BB43864D2"
+color_info = ["0x00040000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x00000000"
+surface_info = "0x18000640"
+viewport = [1024, 0, 1024, 1024]
+color_mask = "0x00000000"
+depth_control = "0x00708737"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 4
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xDD8686FDE7D4FE2F"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 0
+hash = "0xB8ED22303014A9A0"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x47A7554B0F7A34EC"
+pixel_shader_hash = "0xC9BD70547A68F4C5"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 2468
+applied_draw_count = 0
+hash = "0xAE5EF820D5073D51"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120004B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700770"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x3EC739DF445745A9"
+pixel_shader_hash = "0x36F744866629EE18"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 2468
+applied_draw_count = 0
+hash = "0xE28F8BEB4E09C12D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120004B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700770"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x3EC739DF445745A9"
+pixel_shader_hash = "0x7AF459B0BFF69478"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 0
+hash = "0xBFC1B2D8F2E33B38"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120004B0"
+viewport = [0, 0, 2304, 1280]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x8895AB90906ECBC1"
+pixel_shader_hash = "0x5928557DC4F52989"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 0
+hash = "0x9560A636E29DFA8A"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x04800140"
+viewport = [0, 0, 576, 320]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x08016D40A0EF5371"
+pixel_shader_hash = "0x8064167EECA65C8D"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 0
+hash = "0x130889F224084C65"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x04800140"
+viewport = [0, 0, 576, 320]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x08016D40A0EF5371"
+pixel_shader_hash = "0x35754B7A87E5683D"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 16025
+applied_draw_count = 0
+hash = "0xAD7D02EB7119AD40"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x04800140"
+viewport = [0, 0, 576, 320]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 6
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x08016D40A0EF5371"
+pixel_shader_hash = "0x3A7C78D0EB806EE8"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 12009
+applied_draw_count = 0
+hash = "0xCC1AC526FE146AB0"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x3D5BF97DD0CF2BF4"
+pixel_shader_hash = "0xB1592798F0CD1839"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 24
+applied_draw_count = 0
+hash = "0x6329B6390DA4F1F9"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x0A020280"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 7584
+applied_draw_count = 0
+hash = "0x4001CB4958EAF13D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x0A020280"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0xA4A965C189287B99"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 4388
+applied_draw_count = 0
+hash = "0xAF9DF4D3A87129B8"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x14000500"
+viewport = [0, 0, 2560, 1440]
+color_mask = "0x0000000F"
+depth_control = "0x00700730"
+pa_cl_vte_cntl = "0x0000043F"
+primitive_type = 13
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x166196AE4F110875"
+pixel_shader_hash = "0x39004B0872361843"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = true
+draw_count = 24
+applied_draw_count = 0
+hash = "0xBD81D7A062FC455D"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120004B0"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x00000000"
+depth_control = "0x00000000"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 1
+host_vertex_shader_type = 0
+vertex_shader_hash = "0xB6C9863F710683EC"
+pixel_shader_hash = "0x0000000000000000"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 1
+applied_draw_count = 0
+hash = "0x73EBDF3D39AFE8D4"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002E0"
+surface_info = "0x120004B0"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x0000000F"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0xA4A965C189287B99"
+
+[[target]]
+enabled = false
+default_enabled = false
+shadow_candidate = false
+draw_count = 15
+applied_draw_count = 0
+hash = "0x8CC88D3928860FC0"
+color_info = ["0x00000000", "0x00000000", "0x00000000", "0x00000000"]
+depth_info = "0x000002D0"
+surface_info = "0x0A020280"
+viewport = [0, 0, 16384, 16384]
+color_mask = "0x0000000F"
+depth_control = "0x00008777"
+pa_cl_vte_cntl = "0x00000300"
+primitive_type = 8
+host_vertex_shader_type = 0
+vertex_shader_hash = "0x1E6883FCCDE1F688"
+pixel_shader_hash = "0xA4A965C189287B99"
+
