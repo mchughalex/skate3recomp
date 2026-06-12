@@ -504,7 +504,6 @@ std::vector<std::filesystem::path> DiscoverDlcSourceDirectories(
   }
   add_dir(executable_root / std::string(kDlcDirectoryName));
   add_dir(game_data_root / std::string(kDlcDirectoryName));
-  add_dir(user_data_root / std::string(kDlcDirectoryName));
   return dirs;
 }
 
