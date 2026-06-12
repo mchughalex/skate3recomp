@@ -1,0 +1,162 @@
+name: Build Skate3Recomp
+
+on:
+  push:
+    branches: [main, networking-support]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget gnupg lsb-release software-properties-common
+          wget -qO- https://apt.llvm.org/llvm.sh | sudo bash -s -- 20
+          sudo apt-get install -y \
+            cmake ninja-build pkg-config p7zip-full \
+            clang-20 lld-20 \
+            libgtk-3-dev libx11-xcb-dev \
+            libvulkan-dev vulkan-tools mesa-vulkan-drivers \
+            libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev
+
+      - name: Configure
+        run: |
+          cmake --preset linux-release \
+            -DSKATE3_GAME_DATA_ROOT="$PWD/game"
+
+      - name: Generate recompiled sources
+        run: |
+          cmake --build --preset linux-release --target generate-all --parallel
+
+      - name: Reconfigure (pick up generated sources)
+        run: |
+          cmake --preset linux-release \
+            -DSKATE3_GAME_DATA_ROOT="$PWD/game"
+
+      - name: Build
+        run: |
+          cmake --build --preset linux-release --parallel
+
+      - name: Package
+        run: |
+          cd out/build/linux-release
+          chmod +x skate3
+          cd ../..
+          7z a -tzip Skate3Recomp-Linux.zip \
+            build/linux-release/skate3 \
+            build/linux-release/librexruntime.so \
+            build/linux-release/game/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skate3Recomp-Linux
+          path: out/Skate3Recomp-Linux.zip
+          retention-days: 14
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        run: |
+          choco install llvm cmake ninja -y
+          echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
+
+      - name: Configure
+        run: |
+          cmake -G Ninja `
+            -DCMAKE_C_COMPILER=clang `
+            -DCMAKE_CXX_COMPILER=clang++ `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DSKATE3_GAME_DATA_ROOT="$PWD/game" `
+            -B out/build/win-release
+
+      - name: Generate recompiled sources
+        run: |
+          cmake --build out/build/win-release --target generate-all --parallel
+
+      - name: Reconfigure
+        run: |
+          cmake -G Ninja `
+            -DCMAKE_C_COMPILER=clang `
+            -DCMAKE_CXX_COMPILER=clang++ `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DSKATE3_GAME_DATA_ROOT="$PWD/game" `
+            -B out/build/win-release
+
+      - name: Build
+        run: |
+          cmake --build out/build/win-release --parallel
+
+      - name: Package
+        shell: bash
+        run: |
+          cd out/build/win-release
+          7z a -tzip ../../Skate3Recomp-Windows.zip \
+            skate3.exe \
+            rexruntime.dll \
+            game/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skate3Recomp-Windows
+          path: out/Skate3Recomp-Windows.zip
+          retention-days: 14
+
+  build-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install toolchain
+        run: |
+          brew install llvm cmake ninja
+
+      - name: Configure
+        run: |
+          cmake --preset macos-release \
+            -DSKATE3_GAME_DATA_ROOT="$PWD/game"
+
+      - name: Generate recompiled sources
+        run: |
+          cmake --build --preset macos-release --target generate-all --parallel
+
+      - name: Reconfigure
+        run: |
+          cmake --preset macos-release \
+            -DSKATE3_GAME_DATA_ROOT="$PWD/game"
+
+      - name: Build
+        run: |
+          cmake --build --preset macos-release --parallel
+
+      - name: Package
+        run: |
+          cd out/build/macos-release
+          chmod +x skate3
+          cd ../..
+          7z a -tzip Skate3Recomp-macOS.zip \
+            build/macos-release/skate3 \
+            build/macos-release/librexruntime.dylib \
+            build/macos-release/game/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Skate3Recomp-macOS
+          path: out/Skate3Recomp-macOS.zip
+          retention-days: 14
