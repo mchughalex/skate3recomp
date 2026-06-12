@@ -37,7 +37,7 @@ jobs:
             --repo RexxColder/skate3recomp \
             --pattern skate3-generated.zip \
             --output generated.zip
-          7z x generated.zip -o.
+          7z x generated.zip -o. -aoa -aoa
 
       - name: Configure
         run: |
@@ -85,7 +85,7 @@ jobs:
             --repo RexxColder/skate3recomp \
             --pattern skate3-generated.zip \
             --output generated.zip
-          7z x generated.zip -o.
+          7z x generated.zip -o. -aoa
 
       - name: Configure
         run: |
@@ -133,7 +133,7 @@ jobs:
             --repo RexxColder/skate3recomp \
             --pattern skate3-generated.zip \
             --output generated.zip
-          7z x generated.zip -o.
+          7z x generated.zip -o. -aoa
 
       - name: Configure
         run: |
