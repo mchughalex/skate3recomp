@@ -30,6 +30,8 @@ jobs:
             libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev
 
       - name: Download generated sources
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release download ci-generated-assets \
             --repo RexxColder/skate3recomp \
@@ -76,6 +78,8 @@ jobs:
 
       - name: Download generated sources
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release download ci-generated-assets \
             --repo RexxColder/skate3recomp \
@@ -122,6 +126,8 @@ jobs:
           brew install llvm cmake ninja
 
       - name: Download generated sources
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh release download ci-generated-assets \
             --repo RexxColder/skate3recomp \
