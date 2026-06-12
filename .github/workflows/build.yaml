@@ -29,16 +29,15 @@ jobs:
             libvulkan-dev vulkan-tools mesa-vulkan-drivers \
             libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev
 
+      - name: Download generated sources
+        run: |
+          gh release download ci-generated-assets \
+            --repo RexxColder/skate3recomp \
+            --pattern skate3-generated.zip \
+            --output generated.zip
+          7z x generated.zip -o.
+
       - name: Configure
-        run: |
-          cmake --preset linux-release \
-            -DSKATE3_GAME_DATA_ROOT="$PWD/game"
-
-      - name: Generate recompiled sources
-        run: |
-          cmake --build --preset linux-release --target generate-all --parallel
-
-      - name: Reconfigure (pick up generated sources)
         run: |
           cmake --preset linux-release \
             -DSKATE3_GAME_DATA_ROOT="$PWD/game"
@@ -75,26 +74,21 @@ jobs:
           choco install llvm cmake ninja -y
           echo "C:\Program Files\LLVM\bin" >> $env:GITHUB_PATH
 
+      - name: Download generated sources
+        shell: bash
+        run: |
+          gh release download ci-generated-assets \
+            --repo RexxColder/skate3recomp \
+            --pattern skate3-generated.zip \
+            --output generated.zip
+          7z x generated.zip -o.
+
       - name: Configure
         run: |
           cmake -G Ninja `
             -DCMAKE_C_COMPILER=clang `
             -DCMAKE_CXX_COMPILER=clang++ `
             -DCMAKE_BUILD_TYPE=Release `
-            -DSKATE3_GAME_DATA_ROOT="$PWD/game" `
-            -B out/build/win-release
-
-      - name: Generate recompiled sources
-        run: |
-          cmake --build out/build/win-release --target generate-all --parallel
-
-      - name: Reconfigure
-        run: |
-          cmake -G Ninja `
-            -DCMAKE_C_COMPILER=clang `
-            -DCMAKE_CXX_COMPILER=clang++ `
-            -DCMAKE_BUILD_TYPE=Release `
-            -DSKATE3_GAME_DATA_ROOT="$PWD/game" `
             -B out/build/win-release
 
       - name: Build
@@ -127,19 +121,17 @@ jobs:
         run: |
           brew install llvm cmake ninja
 
+      - name: Download generated sources
+        run: |
+          gh release download ci-generated-assets \
+            --repo RexxColder/skate3recomp \
+            --pattern skate3-generated.zip \
+            --output generated.zip
+          7z x generated.zip -o.
+
       - name: Configure
         run: |
-          cmake --preset macos-release \
-            -DSKATE3_GAME_DATA_ROOT="$PWD/game"
-
-      - name: Generate recompiled sources
-        run: |
-          cmake --build --preset macos-release --target generate-all --parallel
-
-      - name: Reconfigure
-        run: |
-          cmake --preset macos-release \
-            -DSKATE3_GAME_DATA_ROOT="$PWD/game"
+          cmake --preset macos-release
 
       - name: Build
         run: |
