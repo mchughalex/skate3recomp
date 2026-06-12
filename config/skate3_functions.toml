@@ -7,6 +7,7 @@
 "0x82EC9BB0" = { end = 0x82EC9BB8 }
 "0x82EC9BB8" = { end = 0x82EC9BC0 }
 
+"0x82F44E40" = { end = 0x82F44E54 }
 "0x82F44E54" = { end = 0x82F4510C }
 
 "0x829843F0" = { end = 0x8298448C }
