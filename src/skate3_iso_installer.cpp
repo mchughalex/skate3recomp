@@ -40,8 +40,8 @@ std::filesystem::path PickIsoFileMacOS();
 namespace {
 
 constexpr uint64_t kSectorSize = 2048;
-constexpr std::array<uint64_t, 5> kPossibleGameOffsets = {
-    0x00000000ull, 0x0000FB20ull, 0x00020600ull, 0x02080000ull, 0x0FD90000ull};
+constexpr std::array<uint64_t, 6> kPossibleGameOffsets = {
+    0x00000000ull, 0x00010000ull, 0x0000FB20ull, 0x00020600ull, 0x02080000ull, 0x0FD90000ull};
 constexpr std::string_view kXdvdfsMagic = "MICROSOFT*XBOX*MEDIA";
 constexpr std::string_view kDefaultXex = "default.xex";
 

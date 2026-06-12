@@ -60,15 +60,15 @@ struct TitleUpdatePayload {
 };
 
 constexpr std::array<TitleUpdatePayload, 2> kPayloads = {{
-    {"default.xexp", "default.xexp", 1701888,
-     "eb9ef9109dfa6d940df2e156e7eaeda4603d2b2319ca6451f324b1c27f2b1f4c"},
+    {"default.xexp", "default.xexp", 1787904,
+     "048550f7961000009b9f9e340b919b64db193accb7e51a1f2c37f24649e365f5"},
     {"data/webkit/EAWebkit.xexp", "data/webkit/EAWebkit.xexp", 4096,
-     "5d4a308d2a6c768fc27c8b62ccb6661171dc504f8c0011a3e116cf0074e09438"},
+     "5eb1090013bc5eb8a2ef5d6d8655e640fd26c1c3a4916a5541d0d7ce331990b1"},
 }};
 
-// Size of the known TU3 STFS container; used as the progress estimate when the
+// Size of the known TU4 STFS container; used as the progress estimate when the
 // HTTP response carries no Content-Length, and as a sanity cap for downloads.
-constexpr uint64_t kContainerSize = 1773568;
+constexpr uint64_t kContainerSize = 1859584;
 constexpr uint64_t kMaxPackageSize = 256ull * 1024 * 1024;
 
 std::string ToLowerCopy(std::string value) {
@@ -693,7 +693,7 @@ bool StageTitleUpdateFromFile(const std::filesystem::path& source,
           Sha256OfData(file_data.data(), file_data.size()) != payload.sha256) {
         error = "The package contains a different version of " +
                 std::string(payload.container_path) +
-                "; this build requires Title Update 3 (3.0.3.0).";
+                "; this build requires Title Update 4 (3.0.4.0).";
         return false;
       }
       if (!StagePayload(payload, file_data, game_root, error)) {
