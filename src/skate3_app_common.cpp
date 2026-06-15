@@ -1,8 +1,12 @@
 #include "skate3_app_common.h"
 
 #include "skate3_fov.h"
+#include "skate3_icon_data.h"
 #include "skate3_iso_installer.h"
+#include "skate3_profile_manager.h"
 #include "skate3_title_update_installer.h"
+#include "skate3_dlc_installer.h"
+#include "skate3_setup_summary.h"
 #include "skate3_user_settings.h"
 
 #include <algorithm>
@@ -59,6 +63,7 @@
 #include <rex/ui/flags.h>
 #include <rex/ui/keybinds.h>
 #include <rex/ui/overlay/simple_settings_overlay.h>
+#include <rex/ui/overlay/profile_creation_overlay.h>
 #include <rex/ui/overlay/ultrawide_targets_overlay.h>
 
 #include <imgui.h>
@@ -504,7 +509,6 @@ std::vector<std::filesystem::path> DiscoverDlcSourceDirectories(
   }
   add_dir(executable_root / std::string(kDlcDirectoryName));
   add_dir(game_data_root / std::string(kDlcDirectoryName));
-  add_dir(user_data_root / std::string(kDlcDirectoryName));
   return dirs;
 }
 
@@ -596,6 +600,165 @@ std::optional<rex::PathConfig> Skate3BaseApp::OnFinalizePaths(
 
   auto profiles = skate3::LoadProfiles(profiles_path_);
   const bool has_profiles_file = std::filesystem::exists(profiles_path_);
+
+  // Shared setup flow: resolve paths → ISO → TU → DLC → summary → resume.
+  // Called after profile is ready (either created or loaded).
+  auto runSetupFlow = [this, defaults, resume = std::move(resume)]() mutable {
+    auto runtime_paths = defaults;
+    runtime_paths.game_data_root = ResolveRuntimeGameDataRoot(runtime_paths);
+    runtime_paths.config_path.clear();
+
+    skate3::SetupSummary summary;
+    bool setup_performed = false;
+
+    // Load profile info from disk for the summary.
+    if (std::filesystem::exists(profiles_path_)) {
+      auto profs = skate3::LoadProfiles(profiles_path_);
+      if (auto* prof = skate3::FindSelectedProfile(profs)) {
+        summary.profile_created = true;
+        summary.profile_name = prof->gamertag;
+      }
+    }
+
+    if (!skate3::IsGameInstalled(runtime_paths.game_data_root)) {
+      REXLOG_INFO("Game files not found at {}; launching rexglue ISO installer",
+                  runtime_paths.game_data_root.string());
+      rex::PathConfig installed_paths;
+      const bool installed = skate3::RunRexglueIsoInstallWizardBlocking(
+          app_context(), window(), imgui_drawer(), runtime_paths, installed_paths);
+      if (!installed) {
+        app_context().QuitFromUIThread();
+        return;
+      }
+      runtime_paths = std::move(installed_paths);
+      summary.iso_installed = true;
+      summary.iso_path = runtime_paths.game_data_root.string();
+      setup_performed = true;
+    }
+
+#if SKATE3_HAS_TITLE_UPDATE
+    if (!skate3::IsTitleUpdateInstalled(runtime_paths.game_data_root)) {
+      REXLOG_INFO("Skate 3 Title Update 4 not staged at {}; launching title update installer",
+                  runtime_paths.game_data_root.string());
+      rex::PathConfig tu_paths;
+      const bool tu_installed = skate3::RunTitleUpdateInstallWizardBlocking(
+          app_context(), window(), imgui_drawer(), runtime_paths, tu_paths);
+      if (!tu_installed) {
+        app_context().QuitFromUIThread();
+        return;
+      }
+      runtime_paths = std::move(tu_paths);
+      summary.tu_installed = true;
+      setup_performed = true;
+    } else {
+      summary.tu_already_present = true;
+    }
+#endif
+
+    // DLC installer (optional) — skip if DLCs are already present or user skipped.
+    const auto existing_dlc = runtime_paths.game_data_root / std::string(kDlcDirectoryName);
+    const auto skip_marker = existing_dlc / ".skip";
+    const bool dlc_dir_has_content =
+        std::filesystem::is_directory(existing_dlc) &&
+        std::filesystem::directory_iterator(existing_dlc) != std::filesystem::directory_iterator{};
+    if (!skate3::IsGameInstalled(runtime_paths.game_data_root) ||
+        (!dlc_dir_has_content && !std::filesystem::exists(skip_marker))) {
+      rex::PathConfig dlc_paths;
+      const bool dlc_done = skate3::RunDlcInstallWizardBlocking(
+          app_context(), window(), imgui_drawer(), runtime_paths, dlc_paths);
+      if (dlc_done) {
+        runtime_paths = std::move(dlc_paths);
+      } else {
+        summary.dlc_skipped = true;
+      }
+      setup_performed = true;
+    } else {
+      REXLOG_INFO("DLC packages already present at {}; skipping DLC installer",
+                  existing_dlc.string());
+    }
+
+    // Scan installed DLC to populate summary stats (always, unless user explicitly skipped).
+    if (!summary.dlc_skipped && std::filesystem::is_directory(existing_dlc)) {
+      uint64_t total_bytes = 0;
+      std::error_code iter_ec;
+      for (const auto& entry : std::filesystem::directory_iterator(existing_dlc, iter_ec)) {
+        if (iter_ec) break;
+        if (!entry.is_regular_file()) continue;
+        const auto ext = entry.path().extension().string();
+        if (ext == ".skip") continue;
+        auto header = rex::filesystem::StfsContainerDevice::ReadPackageHeader(entry.path());
+        if (!header) continue;
+        auto name = header->metadata.display_name(rex::filesystem::XLanguage::kEnglish);
+        std::string display_name;
+        if (!name.empty()) {
+          display_name.assign(name.begin(), name.end());
+        } else {
+          display_name = entry.path().filename().string();
+        }
+        summary.dlc_package_names.push_back(display_name);
+        total_bytes += std::filesystem::file_size(entry.path(), iter_ec);
+      }
+      summary.dlc_total_bytes = total_bytes;
+      summary.dlc_packages_installed = summary.dlc_package_names.size();
+    }
+
+    // If the user clicked Finish (which calls QuitFromUIThread), do not start the game.
+    if (app_context().HasQuitFromUIThread()) {
+      return;
+    }
+
+    // Show setup summary only if a wizard actually ran.
+    if (setup_performed) {
+      skate3::RunSetupSummaryBlocking(app_context(), window(), imgui_drawer(), summary);
+    }
+    resume(std::move(runtime_paths));
+  };
+
+  // First run: show profile creation wizard before anything else
+  if (!has_profiles_file && profiles.profiles.empty()) {
+    REXLOG_INFO("First run detected; launching profile creation wizard");
+    auto profiles_dir = defaults.user_data_root / "profiles";
+    // Wrap runSetupFlow in shared_ptr so it can be deferred out of the ImGui
+    // OnDraw callback (calling blocking dialogs from inside OnDraw deadlocks).
+    auto flow_shared = std::make_shared<std::function<void()>>(std::move(runSetupFlow));
+    auto wizard = new rex::ui::ProfileCreationDialog(
+        imgui_drawer(), profiles_dir,
+        [this, flow_shared, profiles_dir](
+            rex::ui::ProfileCreationResult result) mutable {
+          // Save the created profile
+          skate3::ProfileManager mgr;
+          skate3::XboxLiveProfile profile;
+          profile.xuid = result.xuid;
+          profile.gamertag = result.gamertag;
+          profile.signed_in = result.signed_in;
+          profile.live_signed_in = result.live_signed_in;
+          profile.region = result.region;
+          mgr.Save(profile, profiles_dir);
+
+          // Apply cvars
+          rex::cvar::SetFlagByName("selected_user_profile", profile.gamertag);
+          rex::cvar::SetFlagByName("user_profile_name", profile.gamertag);
+          rex::cvar::SetFlagByName("user_profile_xuid", profile.xuid);
+          rex::cvar::SetFlagByName("user_profile_signed_in", "true");
+          rex::cvar::SetFlagByName("user_live_signed_in",
+                                   profile.live_signed_in ? "true" : "false");
+
+          // Defer to next frame — must not create dialogs inside OnDraw.
+          app_context().CallInUIThreadDeferred([flow_shared]() { (*flow_shared)(); });
+        },
+        [this, flow_shared, defaults]() mutable {
+          // User skipped - create a basic local profile
+          auto profiles = skate3::LoadProfiles(skate3::ProfilesFilePath(defaults.user_data_root));
+          skate3::EnsureUsableProfileStore(profiles, "Player");
+          if (auto* profile = skate3::FindSelectedProfile(profiles)) {
+            skate3::ApplyProfileCvars(*profile);
+          }
+          app_context().CallInUIThreadDeferred([flow_shared]() { (*flow_shared)(); });
+        });
+    wizard->Show();
+    return std::nullopt;
+  }
+
   skate3::EnsureUsableProfileStore(profiles, "Player");
   if (auto* profile = skate3::FindSelectedProfile(profiles)) {
     skate3::ApplyProfileCvars(*profile);
@@ -606,72 +769,9 @@ std::optional<rex::PathConfig> Skate3BaseApp::OnFinalizePaths(
   if (!has_profiles_file && has_config_file && has_game_path) {
     skate3::SaveProfiles(profiles_path_, profiles);
   }
-  auto runtime_paths = defaults;
-  runtime_paths.game_data_root = ResolveRuntimeGameDataRoot(runtime_paths);
-  runtime_paths.config_path.clear();
-  if (!skate3::IsGameInstalled(runtime_paths.game_data_root)) {
-    REXLOG_INFO("Game files not found at {}; launching rexglue ISO installer",
-                runtime_paths.game_data_root.string());
-#if defined(__APPLE__)
-    if (const char* automated_iso = std::getenv("SKATE3_INSTALL_ISO");
-        automated_iso == nullptr || *automated_iso == '\0') {
-#if SKATE3_HAS_TITLE_UPDATE
-      // Chain the title update wizard after the ISO install completes.
-      auto resume_after_title_update =
-          [this, resume = std::move(resume)](rex::PathConfig paths) mutable {
-            if (!skate3::IsTitleUpdateInstalled(paths.game_data_root)) {
-              skate3::ShowTitleUpdateInstallWizard(imgui_drawer(), std::move(paths),
-                                                   std::move(resume));
-              return;
-            }
-            resume(std::move(paths));
-          };
-      skate3::ShowRexglueIsoInstallWizard(imgui_drawer(), std::move(runtime_paths),
-                                          std::move(resume_after_title_update));
-#else
-      skate3::ShowRexglueIsoInstallWizard(imgui_drawer(), std::move(runtime_paths),
-                                          std::move(resume));
-#endif
-      return std::nullopt;
-    }
-#endif
-    rex::PathConfig installed_paths;
-    const bool installed = skate3::RunRexglueIsoInstallWizardBlocking(
-        app_context(), window(), imgui_drawer(), runtime_paths, installed_paths);
-    if (!installed) {
-      app_context().QuitFromUIThread();
-      return std::nullopt;
-    }
-    runtime_paths = std::move(installed_paths);
-  }
 
-#if SKATE3_HAS_TITLE_UPDATE
-  // This build executes Title Update 3 code; the game cannot boot without the
-  // TU payloads staged next to the installed game files. Existing installs
-  // from releases that predate TU support land here with the game present but
-  // the title update missing.
-  if (!skate3::IsTitleUpdateInstalled(runtime_paths.game_data_root)) {
-    REXLOG_INFO("Skate 3 Title Update 3 not staged at {}; launching title update installer",
-                runtime_paths.game_data_root.string());
-#if defined(__APPLE__)
-    if (const char* automated_tu = std::getenv("SKATE3_INSTALL_TU");
-        automated_tu == nullptr || *automated_tu == '\0') {
-      skate3::ShowTitleUpdateInstallWizard(imgui_drawer(), std::move(runtime_paths),
-                                           std::move(resume));
-      return std::nullopt;
-    }
-#endif
-    rex::PathConfig tu_paths;
-    const bool tu_installed = skate3::RunTitleUpdateInstallWizardBlocking(
-        app_context(), window(), imgui_drawer(), runtime_paths, tu_paths);
-    if (!tu_installed) {
-      app_context().QuitFromUIThread();
-      return std::nullopt;
-    }
-    runtime_paths = std::move(tu_paths);
-  }
-#endif
-  return runtime_paths;
+  runSetupFlow();
+  return std::nullopt;
 }
 
 void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
@@ -701,6 +801,11 @@ void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
 }
 
 void Skate3BaseApp::OnPostSetup() {
+  // Set embedded window icon from compiled PNG data
+  if (window()) {
+    window()->SetIcon(skate3_icon_png, skate3_icon_png_len);
+  }
+
   ApplySelectedProfileToRuntime();
   ApplyGameplayCursorMode();
 

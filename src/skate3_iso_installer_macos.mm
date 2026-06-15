@@ -26,7 +26,7 @@ std::filesystem::path PickTitleUpdateFileMacOS() {
     }
 
     NSOpenPanel* panel = [NSOpenPanel openPanel];
-    [panel setTitle:@"Select the Skate 3 Title Update 3 package"];
+    [panel setTitle:@"Select the Skate 3 Title Update 4 package"];
     [panel setPrompt:@"Select"];
     [panel setCanChooseFiles:YES];
     [panel setCanChooseDirectories:NO];

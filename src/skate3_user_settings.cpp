@@ -48,7 +48,8 @@ uint64_t StableXuidForId(std::string_view id) {
     hash ^= static_cast<unsigned char>(c);
     hash *= 1099511628211ull;
   }
-  return 0xB13E000000000000ull | (hash & 0x00003FFFFFFFFFFFull);
+  // Xbox 360 format: E000 + 13 hex chars (E000 prefix for local profiles)
+  return 0xE000000000000000ull | (hash & 0x00000FFFFFFFFFFFull);
 }
 
 uint64_t ParseXuidString(std::string_view value) {

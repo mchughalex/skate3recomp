@@ -40,7 +40,7 @@
 REXCVAR_DEFINE_STRING(skate3_title_update_url,
                       "https://xboxunity.net/Resources/Lib/TitleUpdate.php?tuid=21774",
                       "Skate 3",
-                      "Download URL for the Skate 3 Title Update 3 package (TU3)");
+                      "Download URL for the Skate 3 Title Update 4 package (TU4)");
 
 namespace skate3 {
 
@@ -60,15 +60,15 @@ struct TitleUpdatePayload {
 };
 
 constexpr std::array<TitleUpdatePayload, 2> kPayloads = {{
-    {"default.xexp", "default.xexp", 1701888,
-     "eb9ef9109dfa6d940df2e156e7eaeda4603d2b2319ca6451f324b1c27f2b1f4c"},
+    {"default.xexp", "default.xexp", 1787904,
+     "048550f7961000009b9f9e340b919b64db193accb7e51a1f2c37f24649e365f5"},
     {"data/webkit/EAWebkit.xexp", "data/webkit/EAWebkit.xexp", 4096,
-     "5d4a308d2a6c768fc27c8b62ccb6661171dc504f8c0011a3e116cf0074e09438"},
+     "5eb1090013bc5eb8a2ef5d6d8655e640fd26c1c3a4916a5541d0d7ce331990b1"},
 }};
 
-// Size of the known TU3 STFS container; used as the progress estimate when the
+// Size of the known TU4 STFS container; used as the progress estimate when the
 // HTTP response carries no Content-Length, and as a sanity cap for downloads.
-constexpr uint64_t kContainerSize = 1773568;
+constexpr uint64_t kContainerSize = 1859584;
 constexpr uint64_t kMaxPackageSize = 256ull * 1024 * 1024;
 
 std::string ToLowerCopy(std::string value) {
@@ -572,7 +572,7 @@ std::filesystem::path PickTitleUpdateFile() {
   ofn.lpstrFile = filename;
   ofn.nMaxFile = static_cast<DWORD>(std::size(filename));
   ofn.lpstrFilter = L"Title update package (*.*)\0*.*\0";
-  ofn.lpstrTitle = L"Select the Skate 3 Title Update 3 package";
+  ofn.lpstrTitle = L"Select the Skate 3 Title Update 4 package";
   ofn.Flags = OFN_EXPLORER | OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR |
               OFN_DONTADDTORECENT;
   if (!GetOpenFileNameW(&ofn)) {
@@ -587,7 +587,7 @@ std::filesystem::path PickTitleUpdateFile() {
 #else
 std::filesystem::path PickTitleUpdateFile() {
   GtkWidget* dialog = gtk_file_chooser_dialog_new(
-      "Select the Skate 3 Title Update 3 package", nullptr, GTK_FILE_CHOOSER_ACTION_OPEN,
+      "Select the Skate 3 Title Update 4 package", nullptr, GTK_FILE_CHOOSER_ACTION_OPEN,
       "_Cancel", GTK_RESPONSE_CANCEL, "_Open", GTK_RESPONSE_ACCEPT, nullptr);
   if (!dialog) {
     return {};
@@ -693,7 +693,7 @@ bool StageTitleUpdateFromFile(const std::filesystem::path& source,
           Sha256OfData(file_data.data(), file_data.size()) != payload.sha256) {
         error = "The package contains a different version of " +
                 std::string(payload.container_path) +
-                "; this build requires Title Update 3 (3.0.3.0).";
+                "; this build requires Title Update 4 (3.0.4.0).";
         return false;
       }
       if (!StagePayload(payload, file_data, game_root, error)) {
@@ -732,31 +732,17 @@ void ShowTitleUpdateInstallWizard(rex::ui::ImGuiDrawer* drawer, rex::PathConfig 
   rex::ui::AcquireWizardDialog::Options options;
   options.title = "Skate 3 Title Update";
   options.intro =
-      "This build of Skate 3 requires Title Update 3, a free update originally published on "
+      "This build of Skate 3 requires Title Update 4, a free update originally published on "
       "Xbox Live. It is not part of the game disc.";
   options.target_directory = game_root.string();
   options.initial_status =
-      "Download it automatically, or select a title update package you already have.";
-  options.fetch_button_label = "Download (1.7 MB)";
+      "Select a title update package you already have.";
+  options.fetch_button_label.clear();
   options.pick_button_label = "Select file...";
-  options.fetch_connecting_status =
-      "Connecting to the download server... (this can take a moment)";
-  options.fetch_working_status = "Downloading Title Update 3...";
   options.install_working_status = "Installing the title update...";
-  options.done_status = "Title Update 3 installed.";
-  options.done_button_label = "Start Game";
+  options.done_status = "Title Update 4 installed.";
+  options.done_button_label = "Next";
 
-  auto fetch = [game_root](std::atomic<uint64_t>& copied_bytes, std::atomic<uint64_t>& total_bytes,
-                           std::string& error) {
-    if (!DownloadAndStageTitleUpdate(game_root, copied_bytes, total_bytes, error)) {
-      return false;
-    }
-    if (!IsTitleUpdateInstalled(game_root)) {
-      error = "The title update could not be verified after installation.";
-      return false;
-    }
-    return true;
-  };
   auto install = [game_root](const std::filesystem::path& source,
                              std::atomic<uint64_t>& copied_bytes,
                              std::atomic<uint64_t>& total_bytes, std::string& error) {
@@ -773,7 +759,7 @@ void ShowTitleUpdateInstallWizard(rex::ui::ImGuiDrawer* drawer, rex::PathConfig 
   };
 
   new rex::ui::AcquireWizardDialog(
-      drawer, std::move(options), std::move(fetch), []() { return PickTitleUpdateFile(); },
+      drawer, std::move(options), nullptr, []() { return PickTitleUpdateFile(); },
       std::move(install),
       [runtime_paths = std::move(runtime_paths), complete = std::move(complete)]() mutable {
         if (complete) {
