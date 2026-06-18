@@ -55,6 +55,8 @@
 #include <rex/perf/counter.h>
 #include <rex/ppc/context.h>
 #include <rex/system/function_dispatcher.h>
+#include <toml++/toml.h>
+#include <cstdio>
 #include <rex/system/kernel_state.h>
 #include <rex/system/xam/content_device.h>
 #include <rex/system/xam/content_manager.h>
@@ -800,7 +802,97 @@ void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
                         });
 }
 
+// Memory dump function
+static void dump_game_memory() {
+  auto mem = REX_KERNEL_MEMORY();
+  if (!mem) return;
+  uint8_t* base = (uint8_t*)mem->TranslateVirtual(0x80000000);
+  if (!base) return;
+  
+  const uint32_t SCAN_SIZE = 0x04000000; // 64MB
+  const char* path = "/home/rexx/Escritorio/Skate3_XEX/dumps/memdump_80000000_84000000.bin";
+  FILE* f = fopen(path, "wb");
+  if (f) {
+    fwrite(base, 1, SCAN_SIZE, f);
+    fclose(f);
+    REXKRNL_INFO("[NET] Memory dump: {}MB -> {}", SCAN_SIZE / (1024*1024), path);
+  }
+  
+  // Log string locations
+  for (uint32_t off = 0; off < SCAN_SIZE - 12; off++) {
+    if (memcmp(base + off, "nosecure", 8) == 0)
+      REXKRNL_INFO("[NET] 'nosecure' at 0x{:08X}", 0x80000000 + off);
+    if (memcmp(base + off, "-syslink", 8) == 0)
+      REXKRNL_INFO("[NET] '-syslink' at 0x{:08X}", 0x80000000 + off);
+  }
+}
+
+// Function override system
+struct FuncOverride {
+  uint32_t address;
+  std::string patch_hex;
+  std::string hook_name;
+};
+
+// XLSP bypass hook
+static void xlsp_bypass_hook(PPCContext& ctx, uint8_t* /*base*/) {
+  ctx.r3.s64 = 1;
+  REXKRNL_INFO("[NET] XLSP bypass: forcing r3=1");
+}
+
+static void load_and_apply_overrides() {
+  auto* dispatcher = REX_KERNEL_STATE()->function_dispatcher();
+  if (!dispatcher) return;
+  
+  // Debug controls
+  bool debug_net = true;
+  bool debug_dump = true;
+  
+  std::string config_path = "/home/rexx/.local/share/skate3/settings.toml";
+  try {
+    auto tbl = toml::parse_file(config_path);
+    
+    if (auto debug = tbl["debug"].as_table()) {
+      debug_net = debug->get("net")->value_or(true);
+      debug_dump = debug->get("dump")->value_or(true);
+      REXKRNL_INFO("[NET] Debug: net={}, dump={}", debug_net, debug_dump);
+    }
+    
+    if (debug_dump) dump_game_memory();
+    
+    if (auto overrides = tbl["function_overrides"].as_table()) {
+      for (auto& [key, val] : *overrides) {
+        std::string key_str(key);
+        uint32_t addr = std::stoul(key_str, nullptr, 16);
+        std::string val_str;
+        if (val.is_string()) val_str = val.value_or<std::string>("");
+        
+        if (val_str.size() > 2 && val_str.substr(0, 2) == "0x") {
+          // Raw memory patch
+          uint8_t* target = (uint8_t*)REX_KERNEL_MEMORY()->TranslateVirtual(addr);
+          if (target) {
+            std::string hex = val_str.substr(2);
+            for (size_t i = 0; i + 1 < hex.size(); i += 2) {
+              uint8_t byte = (uint8_t)std::stoul(hex.substr(i, 2), nullptr, 16);
+              target[i / 2] = byte;
+            }
+            REXKRNL_INFO("[NET] Override: patched 0x{:08X} with {}", addr, hex);
+          }
+        } else if (val_str == "xlsp_bypass") {
+          dispatcher->SetFunction(addr, &xlsp_bypass_hook);
+          REXKRNL_INFO("[NET] Override: SetFunction 0x{:08X} -> xlsp_bypass", addr);
+        }
+      }
+    }
+  } catch (const std::exception& e) {
+    REXKRNL_INFO("[NET] No overrides: {}", e.what());
+  }
+}
+
 void Skate3BaseApp::OnPostSetup() {
+  // Load function overrides and dump memory right after TU is applied
+  load_and_apply_overrides();
+
   // Set embedded window icon from compiled PNG data
   if (window()) {
     window()->SetIcon(skate3_icon_png, skate3_icon_png_len);
