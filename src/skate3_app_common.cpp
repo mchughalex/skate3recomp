@@ -802,28 +802,31 @@ void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
                         });
 }
 
-// Memory dump function
-static void dump_game_memory() {
+// Memory dump function — saves 64MB to file
+static void dump_game_memory(const char* label = "dump") {
   auto mem = REX_KERNEL_MEMORY();
   if (!mem) return;
   uint8_t* base = (uint8_t*)mem->TranslateVirtual(0x80000000);
   if (!base) return;
   
   const uint32_t SCAN_SIZE = 0x04000000; // 64MB
-  const char* path = "/home/rexx/Escritorio/Skate3_XEX/dumps/memdump_80000000_84000000.bin";
+  char path[256];
+  snprintf(path, sizeof(path), "/home/rexx/Escritorio/Skate3_XEX/dumps/memdump_%s.bin", label);
   FILE* f = fopen(path, "wb");
   if (f) {
     fwrite(base, 1, SCAN_SIZE, f);
     fclose(f);
-    REXKRNL_INFO("[NET] Memory dump: {}MB -> {}", SCAN_SIZE / (1024*1024), path);
+    REXKRNL_INFO("[NET] Memory dump ({}): {}MB -> {}", label, SCAN_SIZE / (1024*1024), path);
   }
   
-  // Log string locations
-  for (uint32_t off = 0; off < SCAN_SIZE - 12; off++) {
-    if (memcmp(base + off, "nosecure", 8) == 0)
-      REXKRNL_INFO("[NET] 'nosecure' at 0x{:08X}", 0x80000000 + off);
-    if (memcmp(base + off, "-syslink", 8) == 0)
-      REXKRNL_INFO("[NET] '-syslink' at 0x{:08X}", 0x80000000 + off);
+  // Log string locations (only on initial dump)
+  if (strcmp(label, "initial") == 0) {
+    for (uint32_t off = 0; off < SCAN_SIZE - 12; off++) {
+      if (memcmp(base + off, "nosecure", 8) == 0)
+        REXKRNL_INFO("[NET] 'nosecure' at 0x{:08X}", 0x80000000 + off);
+      if (memcmp(base + off, "-syslink", 8) == 0)
+        REXKRNL_INFO("[NET] '-syslink' at 0x{:08X}", 0x80000000 + off);
+    }
   }
 }
 
@@ -834,10 +837,94 @@ struct FuncOverride {
   std::string hook_name;
 };
 
-// XLSP bypass hook
+// XLSP bypass hook — fires on DirtySDK XLSP vtable methods
+static std::atomic<int> xlsp_hook_count{0};
+static std::atomic<bool> final_dump_done{false};
+static std::atomic<bool> bUseGateway_patched{false};
+
+// Scan DirtySDK BSS for bUseGateway and force it to 0 (nosecure/plain TCP)
+// bUseGateway candidates: bytes that were 0 before init, became 1 after
+static void patch_bUseGateway() {
+  if (bUseGateway_patched.exchange(true)) return;
+  
+  auto mem = REX_KERNEL_MEMORY();
+  if (!mem) return;
+  uint8_t* base = (uint8_t*)mem->TranslateVirtual(0x80000000);
+  if (!base) return;
+  
+  // DirtySDK BSS range: 0x82FD0000-0x82FE0000
+  uint32_t bss_start = 0x82FD0000;
+  uint32_t bss_end = 0x82FE0000;
+  
+  // Known bUseGateway candidates from dump analysis
+  // These bytes changed from 0 to 1 during DirtySDK init
+  uint32_t candidates[] = {
+    0x82FD0DBE, 0x82FD1202, 0x82FD17B6, 0x82FD1872, 0x82FD18DE,
+    0x82FD2122, 0x82FD2386, 0x82FD2662, 0x82FD28EE, 0x82FD2B7E,
+    0x82FD2CDA, 0x82FD2E1E, 0x82FD2FE2, 0x82FD3026, 0x82FDE26C
+  };
+  
+  int patched = 0;
+  for (uint32_t addr : candidates) {
+    uint8_t* ptr = base + (addr - 0x80000000);
+    if (*ptr == 0x01) {
+      *ptr = 0x00;
+      patched++;
+      REXKRNL_INFO("[NET] bUseGateway PATCH: 0x{:08X} forced to 0x00", addr);
+    }
+  }
+  
+  // Also scan the whole BSS for any byte that's exactly 1 in isolated positions
+  // (single byte 1 surrounded by zeros — likely a flag, not part of a larger value)
+  int additional = 0;
+  for (uint32_t addr = bss_start; addr < bss_end; addr++) {
+    uint8_t* ptr = base + (addr - 0x80000000);
+    if (*ptr == 0x01) {
+      // Check if it's a candidate (byte 1 surrounded by zeros)
+      bool isolated = (ptr[-1] == 0x00 || addr == bss_start) && 
+                      (ptr[1] == 0x00 || addr == bss_end - 1);
+      // Check if it was in our known list
+      bool known = false;
+      for (uint32_t c : candidates) {
+        if (addr == c) { known = true; break; }
+      }
+      if (isolated && !known) {
+        // Don't patch unknown isolated bytes — too risky
+        // But log them for analysis
+        additional++;
+      }
+    }
+  }
+  
+  REXKRNL_INFO("[NET] bUseGateway patch: {} candidates patched, {} isolated bytes found", 
+               patched, additional);
+  REXKRNL_INFO("[NET] If game goes online → bUseGateway found. If not → need different approach.");
+}
+
 static void xlsp_bypass_hook(PPCContext& ctx, uint8_t* /*base*/) {
+  uint32_t struct_ptr = ctx.r3.u32;
+  int count = xlsp_hook_count.fetch_add(1);
+  
+  // Force r3 = 1 (online)
   ctx.r3.s64 = 1;
-  REXKRNL_INFO("[NET] XLSP bypass: forcing r3=1");
+  
+  // On first bypass, run the bUseGateway patch
+  if (count == 0) {
+    patch_bUseGateway();
+  }
+  
+  if (count < 5) {
+    REXKRNL_INFO("[NET] XLSP BYPASS #{}: struct=0x{:08X}, forcing r3=1", count, struct_ptr);
+  }
+  
+  // After bypasses, trigger final dump
+  if (count >= 3 && !final_dump_done.exchange(true)) {
+    std::thread([]{
+      std::this_thread::sleep_for(std::chrono::seconds(5));
+      dump_game_memory("final_xlsp");
+      REXKRNL_INFO("[NET] FINAL dump — ready for comparison");
+    }).detach();
+  }
 }
 
 static void load_and_apply_overrides() {
@@ -858,7 +945,8 @@ static void load_and_apply_overrides() {
       REXKRNL_INFO("[NET] Debug: net={}, dump={}", debug_net, debug_dump);
     }
     
-    if (debug_dump) dump_game_memory();
+    // INITIAL dump BEFORE patches (clean state)
+    if (debug_dump) dump_game_memory("initial");
     
     if (auto overrides = tbl["function_overrides"].as_table()) {
       for (auto& [key, val] : *overrides) {
@@ -868,7 +956,6 @@ static void load_and_apply_overrides() {
         if (val.is_string()) val_str = val.value_or<std::string>("");
         
         if (val_str.size() > 2 && val_str.substr(0, 2) == "0x") {
-          // Raw memory patch
           uint8_t* target = (uint8_t*)REX_KERNEL_MEMORY()->TranslateVirtual(addr);
           if (target) {
             std::string hex = val_str.substr(2);
@@ -890,6 +977,22 @@ static void load_and_apply_overrides() {
 }
 
 void Skate3BaseApp::OnPostSetup() {
+  // Create fileserver.ini in game_data_root so DirtySDK can find it
+  {
+    auto game_root = runtime()->game_data_root();
+    if (!game_root.empty()) {
+      auto ini_path = game_root / "fileserver.ini";
+      if (!std::filesystem::exists(ini_path)) {
+        std::ofstream ofs(ini_path);
+        ofs << "[Server]\naddress=127.0.0.1\nport=42127\n";
+        ofs.close();
+        REXKRNL_INFO("[NET] Created fileserver.ini at {}", ini_path.string());
+      } else {
+        REXKRNL_INFO("[NET] fileserver.ini exists at {}", ini_path.string());
+      }
+    }
+  }
+
   // Load function overrides and dump memory right after TU is applied
   load_and_apply_overrides();
 
