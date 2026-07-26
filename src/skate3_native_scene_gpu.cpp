@@ -6020,7 +6020,6 @@ void ReleaseRetiredAndFlushCaches(const NativeGuestOutputRenderContext& context)
     g_r.tex_routes.clear();
     g_r.words_sticky.clear();
     g_r.tex_sticky.clear();
-    g_r.tex_pending_first.clear();
     REXLOG_INFO("native-scene: texture cache flushed (debug dialog)");
   }
   if (g_flush_meshes.exchange(false, std::memory_order_relaxed)) {
@@ -8587,7 +8586,27 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
                  : (g_in_menus_frame.load(std::memory_order_relaxed) ? 2ull
                                                                      : 16ull));
         const uint64_t fp = SampleProbeFingerprint(base, e);
-        const bool fp_new = fp != 0 && fp != e.payload_fp;
+        const bool fp_changed = fp != 0 && fp != e.payload_fp;
+        bool fp_new = false;
+        if (fp_changed) {
+          if (e.pending_payload_fp == fp) {
+            if (e.pending_payload_confirmations < 2) {
+              ++e.pending_payload_confirmations;
+            }
+          } else {
+            e.pending_payload_fp = fp;
+            e.pending_payload_confirmations = 1;
+          }
+          fp_new = e.pending_payload_confirmations >= 2;
+          if (!fp_new) {
+            // Verify the candidate promptly. This keeps a completed stream
+            // responsive while refusing one-frame/mid-copy fingerprints.
+            e.recheck_frame = std::min(e.recheck_frame, frame_number + 2);
+          }
+        } else {
+          e.pending_payload_fp = 0;
+          e.pending_payload_confirmations = 0;
+        }
         if (trm) {
           REXLOG_INFO(
               "tex-trace: f{} obj={:08X} poll key={:016X} fp={:016X} "
@@ -8733,9 +8752,6 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
         site.words_key = cur_key;
         site.area = cur_area;
         site.downgrade_since = 0;
-        if (!g_r.tex_pending_first.empty()) {
-          g_r.tex_pending_first.erase(tex_ptr);
-        }
         return t;
       }
       if (tex_pending) {
@@ -8774,20 +8790,6 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
             : nullptr;
     if (diffuse == nullptr) {
       diffuse = resolve_texture(item.diffuse_tex, 0);
-      if (diffuse == &g_r.white && tex_pending && item.diffuse_tex != 0 &&
-          !item.retained) {
-        // Brand-new content, first decode in flight, and no previous mip
-        // cached to serve: draw NOTHING for a short window instead of a
-        // white flash: the emulated pop-in semantics (the game shows
-        // streamed content only once its data is ready). Bounded so a
-        // permanently failing texture still falls back to visible white.
-        const auto [pit, fresh] =
-            g_r.tex_pending_first.try_emplace(item.diffuse_tex, frame_number);
-        if (frame_number - pit->second < 20) {
-          g_skip_new.fetch_add(1, std::memory_order_relaxed);
-          return;
-        }
-      }
     }
     const GuestTexture* lightmap =
         item.lightmap_tex != 0 && REXCVAR_GET(skate3_native_render_scene_lightmaps)
@@ -11597,4 +11599,3 @@ void ResetSceneFailure() {}
 }  // namespace skate3::native_scene
 
 #endif  // REX_HAS_D3D12 || REX_HAS_VULKAN
-
