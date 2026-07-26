@@ -91,6 +91,13 @@ struct GuestTexture {
   uint32_t payload_size = 0;
   uint64_t payload_fp = 0;
   uint64_t recheck_frame = 0;
+  // Candidate observed by payload revalidation. In-place streaming writes
+  // are not coherent with the native renderer's sampled reads, so one
+  // changed fingerprint is not sufficient evidence that a complete new
+  // image exists. Require the same changed fingerprint on two consecutive
+  // polls before replacing a valid cached decode.
+  uint64_t pending_payload_fp = 0;
+  uint8_t pending_payload_confirmations = 0;
   // Consecutive failed decodes of this entry (payload still streaming in):
   // drives the escalating retry backoff at commit; the first failure
   // retries fast (the payload usually lands within a few frames; a fixed
@@ -1004,10 +1011,6 @@ struct RendererState {
     uint64_t downgrade_since = 0;
   };
   std::unordered_map<uint64_t, TexStickySite> tex_sticky;
-  // First frame a texture object resolved white-with-heal-in-flight:
-  // brand-new items (no sticky fallback) skip drawing for a short window
-  // instead of flashing white.
-  std::unordered_map<uint32_t, uint64_t> tex_pending_first;
   bool failed = false;
   bool announced = false;
 };
