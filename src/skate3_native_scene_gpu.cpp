@@ -856,6 +856,14 @@ bool DecodeMesh(nrhi::Device* device, uint8_t* base, const DrawItem& item,
           break;
         case 37:  // k_32_32_FLOAT (hair strand-alpha UV; xenos enum 37)
         case 38:  // k_32_32_32_32_FLOAT (use xy)
+        case 57:  // k_32_32_32_FLOAT (use xy). Community custom maps
+                  // (ArenaBuilder-built worlds) declare their texcoord this
+                  // way; without this case the decode fell through to the
+                  // default and left the UV at (0,0), so every pixel sampled
+                  // one texel and the whole surface rendered as a single flat
+                  // colour - the "custom maps have no textures on the native
+                  // renderer" report. x is at +0 and y at +4 exactly as for
+                  // the other float pairs.
           u = std::bit_cast<float>(SwapU32(*reinterpret_cast<const uint32_t*>(q)));
           w = std::bit_cast<float>(SwapU32(*reinterpret_cast<const uint32_t*>(q + 4)));
           break;

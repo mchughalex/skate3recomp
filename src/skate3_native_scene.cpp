@@ -2107,8 +2107,16 @@ bool BuildItemFromMesh(uint8_t* base, uint32_t mesh, DrawItem& item) {
   item.vb_bytes = BSwap32(vb_words[2]);
   item.ib_addr = BSwap32(ib_words[0]) & 0xFFFFFFFC;
   item.ib_count = BSwap32(ib_words[2]);
+  // vb_bytes need only COVER a whole number of vertices, not equal one
+  // exactly. Community custom maps (ArenaBuilder-built worlds) ship vertex
+  // buffers with a few trailing bytes past the last vertex - e.g. 43968
+  // bytes at stride 36 leaves 12 over - and requiring an exact multiple
+  // rejected the entire mesh, so the world rendered with no ground at all.
+  // Every consumer already derives the vertex count as vb_bytes / stride
+  // (integer division), so the trailing bytes are simply unused; all that
+  // is really required is room for at least one vertex.
   if (item.vb_addr == 0 || item.ib_addr == 0 || item.vb_bytes == 0 ||
-      item.ib_count == 0 || item.vb_bytes % item.stride != 0) {
+      item.ib_count == 0 || item.stride == 0 || item.vb_bytes < item.stride) {
     g_rej_geom.fetch_add(1, std::memory_order_relaxed);
     return false;
   }
