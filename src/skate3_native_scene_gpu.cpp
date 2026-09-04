@@ -68,6 +68,7 @@ REXCVAR_DECLARE(bool, skate3_native_render_scene_backface_cull);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_bloom);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_boot_native);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_cas_yield);
+REXCVAR_DECLARE(double, skate3_native_render_scene_character_size);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_char_shadow_exact);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_decals);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_dynamic_items);
@@ -173,15 +174,34 @@ namespace skate3::native_scene {
 namespace {
 
 // Retire a guest texture's GPU resources AND its view. Destruction is
-// deferred inside the RHI against the CURRENT submission; the `submission`
-// parameter is kept for call-site compatibility and ignored.
-void RetireGuestTexture(const GuestTexture& t, uint64_t submission) {
-  (void)submission;
+// deferred inside the RHI against the CURRENT submission.
+void RetireGuestTexture(const GuestTexture& t) {
   g_r.device->DestroyDeferred(t.texture);
   g_r.device->DestroyDeferred(t.upload);
   g_r.device->DestroyDeferred(t.upload_b);
   g_r.device->DestroyDeferred(t.srv);
 }
+
+// ---- F3: shadow-pass bone-palette reuse cache -------------------------------
+// Dynamic shadow casters memcpy their skinned bone palette into the per-frame
+// bone ring in RenderShadowAtlas (the SHADOW pass). The main pass re-uploads
+// the SAME item.bones to the SAME ring for every skinned item it draws. This
+// is pure duplication: both passes run inside the SAME RenderScene frame on
+// the SAME immutable DrawItem objects (scene.items is a stable vector), the
+// bone ring is a persistently-mapped upload buffer (CPU writes are visible to
+// every draw in the submitted command list), and RenderScene calls
+// RenderShadowAtlas BEFORE the main draw_item loop. So by the time the main
+// pass binds the bone SRV for an item, the shadow pass has already written
+// that item's bones at the cached offset. The main pass reuses that offset and
+// SKIPS the second memcpy. Keyed on the DrawItem* identity (many instances
+// share a mesh but carry distinct poses; mesh alone would collide). Cleared
+// once per frame at the bone-ring reset in RenderScene. Render-thread only.
+struct F3ShadowBoneEntry {
+  const DrawItem* item;
+  uint32_t offset;
+  float cs;
+};
+static std::vector<F3ShadowBoneEntry> g_f3_shadow_bones;
 
 // ---- Content store helpers --------------------------------------------------
 // The store is words-keyed; the guest
@@ -317,7 +337,7 @@ uint32_t GuestTextureGpuBytes(const GuestTexture& t, uint32_t faces = 1) {
   return bytes > UINT32_MAX ? UINT32_MAX : uint32_t(bytes);
 }
 
-void EvictTexStore(uint64_t frame_number, uint64_t submission) {
+void EvictTexStore(uint64_t frame_number) {
   static bool s_evicting = false;
   static uint64_t s_next_scan_frame = 0;
   static uint64_t s_evicted_run = 0;
@@ -403,7 +423,7 @@ void EvictTexStore(uint64_t frame_number, uint64_t submission) {
     if (it != g_r.tex_store.end()) {
       g_tex_store_bytes -= std::min<uint64_t>(g_tex_store_bytes,
                                               it->second.gpu_bytes);
-      RetireGuestTexture(it->second, submission);
+      RetireGuestTexture(it->second);
       g_r.tex_store.erase(it);
     }
   }
@@ -516,7 +536,7 @@ void EvictMeshStore(uint64_t frame_number) {
 // idle guard keeps anything recently sampled resident.
 constexpr size_t kCubeStoreCap = 48;
 
-void EvictCubeStore(uint64_t frame_number, uint64_t submission) {
+void EvictCubeStore(uint64_t frame_number) {
   if (g_r.cube_textures.size() <= kCubeStoreCap) {
     return;
   }
@@ -531,7 +551,7 @@ void EvictCubeStore(uint64_t frame_number, uint64_t submission) {
     }
   }
   if (oldest != g_r.cube_textures.end()) {
-    RetireGuestTexture(oldest->second, submission);
+    RetireGuestTexture(oldest->second);
     g_r.cube_textures.erase(oldest);
     g_store_evicted.fetch_add(1, std::memory_order_relaxed);
   }
@@ -611,6 +631,35 @@ void CommitStagedGuestTexture(const NativeGuestOutputRenderContext& context,
     return;
   }
   gt.valid = true;
+}
+
+// In-place commit for a words-keyed content swap: the caller already has a
+// valid cached decode whose fetch words (thus layout) are identical to the
+// staged one, so the new decode's mips are re-uploaded into the EXISTING
+// texture and its SRV slot is kept - instead of retiring the view and
+// creating a fresh texture+view, whose destruction DrainRetired pays the
+// next frame. Mirrors CommitStagedGuestTexture's copy plan, but the target
+// has been sampled by earlier draws this frame, so both sides of the copy
+// are explicit barriers (same semantics as a retire+recreate mid-frame).
+// Returns false if the caller must fall back to retire+recreate.
+bool UploadStagedGuestTextureInPlace(const NativeGuestOutputRenderContext& context,
+                                     nrhi::Texture* tex, nrhi::Buffer* upload,
+                                     const StagedTexCommit& sc) {
+  if (tex == nullptr || upload == nullptr || sc.cube || sc.mip_count == 0) {
+    return false;
+  }
+  context.cmd->Barrier(tex, nrhi::ResourceState::kPixelShaderResource,
+                       nrhi::ResourceState::kCopyDest);
+  context.cmd->FlushBarriers();
+  for (uint32_t m = 0; m < sc.mip_count; ++m) {
+    const StagedMipCopy& p = sc.mips[m];
+    context.cmd->CopyBufferToTexture(tex, m, 0, upload, p.offset, p.pitch, p.w,
+                                     p.h, 1);
+  }
+  context.cmd->Barrier(tex, nrhi::ResourceState::kCopyDest,
+                       nrhi::ResourceState::kPixelShaderResource);
+  context.cmd->FlushBarriers();
+  return true;
 }
 
 // Worker-pool result plumbing (see the prewarm queue globals above; these
@@ -4227,22 +4276,68 @@ bool EnsurePipeline(const NativeGuestOutputRenderContext& context) {
     return false;
   }
 
-  if (g_r.rtv_resource != context.guest_output) {
-    // The presenter recreated the output image (resize). Render-target
-    // binding is by texture now (the old heap-slot-0 RTV is gone); re-point
-    // the cached identity and the sampled view of the output (blur source /
-    // photo passes).
-    if (g_r.output_srv_slot) {
-      device->DestroyDeferred(g_r.output_srv_slot);
-      g_r.output_srv_slot = nullptr;
-    }
-    nrhi::TextureViewDesc vd;
-    vd.mip_levels = 1;
-    g_r.output_srv_slot = device->CreateTextureView(context.guest_output, vd);
-    g_r.output_srv_allocated = g_r.output_srv_slot != nullptr;
-    g_r.rtv_resource = context.guest_output;
+  if (g_r.output_views.empty()) {
+    g_r.output_views.reserve(8);
   }
+  g_r.output_srv_slot = EnsureOutputSrvView(context);
   return true;
+}
+
+// Sampled view of the current guest-output texture, backed by the
+// per-mailbox-image cache. The Vulkan presenter rotates among a small set of
+// guest-output images (a 3-image mailbox) on every refresh, so
+// context.guest_output toggles between those images each frame. The old code
+// recreated output_srv_slot whenever the identity changed, which fired on
+// every rotation and turned each frame into a fullscreen VkImageView
+// create+destroy (the recurring DrainRetired micro-stutter). Here the view is
+// cached per output texture and reused on rotation; a view is created only
+// when a genuinely NEW output texture (a resize) appears.
+nrhi::TextureView* EnsureOutputSrvView(const NativeGuestOutputRenderContext& context) {
+  nrhi::Device* device = context.device;
+  if (context.guest_output == nullptr) {
+    return nullptr;
+  }
+  ++g_r.output_view_seq;
+  // Reuse the cached view for this exact output texture (mailbox rotation).
+  for (auto& e : g_r.output_views) {
+    if (e.tex == context.guest_output) {
+      e.seq = g_r.output_view_seq;
+      g_r.output_srv_slot = e.view;
+      g_r.output_srv_allocated = e.view != nullptr;
+      g_r.rtv_resource = context.guest_output;
+      return e.view;
+    }
+  }
+  // Not seen before: create a view for this output texture and cache it.
+  nrhi::TextureViewDesc vd;
+  vd.mip_levels = 1;
+  nrhi::TextureView* view = device->CreateTextureView(context.guest_output, vd);
+  // The presenter's mailbox is 3 images; allow one extra for a same-frame
+  // replacement just observed during a resize.
+  constexpr size_t kOutputViewCap = 4;
+  bool evicted = false;
+  if (g_r.output_views.size() >= kOutputViewCap) {
+    // Evict the least-recently-used entry to make room. The old view is
+    // FORGOTTEN (its pointer dropped), not deferred-destroyed: the RHI owns
+    // the guest-output wrapper lifetime and may release an out-of-date
+    // wrapper's texture before we next return here, so a deferred destroy
+    // (which reads back through the wrapper) would be unsafe.
+    size_t oldest = 0;
+    for (size_t i = 1; i < g_r.output_views.size(); ++i) {
+      if (g_r.output_views[i].seq < g_r.output_views[oldest].seq) {
+        oldest = i;
+      }
+    }
+    g_r.output_views[oldest] = {context.guest_output, view, g_r.output_view_seq};
+    evicted = true;
+  }
+  if (!evicted) {
+    g_r.output_views.push_back({context.guest_output, view, g_r.output_view_seq});
+  }
+  g_r.output_srv_slot = view;
+  g_r.output_srv_allocated = view != nullptr;
+  g_r.rtv_resource = context.guest_output;
+  return view;
 }
 
 namespace {
@@ -4342,7 +4437,7 @@ void WarmItemResources(const NativeGuestOutputRenderContext& context, uint8_t* b
                      "fp {:016X}->{:016X}",
                      tex_ptr, key, it->second.incomplete, it->second.payload_fp, fp);
       }
-      RetireGuestTexture(it->second, context.device->CurrentSubmission());
+      RetireGuestTexture(it->second);
       g_r.tex_store.erase(it);
     }
     if (!within()) {
@@ -4909,7 +5004,7 @@ void PrewarmCommit(const NativeGuestOutputRenderContext& context,
           continue;
         }
         if (cit != g_r.cube_textures.end()) {
-          RetireGuestTexture(cit->second, context.device->CurrentSubmission());
+          RetireGuestTexture(cit->second);
           g_r.cube_textures.erase(cit);
         }
         if (t.valid) {
@@ -4987,12 +5082,39 @@ void PrewarmCommit(const NativeGuestOutputRenderContext& context,
                   "-> {:016X}",
                   t.words_key, wit->second.payload_fp, t.gt.payload_fp);
             }
+            // The new decode's layout is identical to the cached one (same
+            // fetch words = same key = same format/dims/mips), so re-upload
+            // it into the EXISTING texture and keep the SRV slot, dropping
+            // the retire+recreate that left DrainRetired a fresh view+texture
+            // to destroy next frame. Guards are belt-and-suspenders; anything
+            // unexpected (a tex_mips/format toggle between polls) falls back
+            // to the retire+recreate below.
+            if (wit->second.texture != nullptr && wit->second.srv != nullptr &&
+                t.gt.texture != nullptr && t.gt.upload != nullptr &&
+                !t.commit.cube && t.commit.mip_count >= 1 &&
+                wit->second.srv_format == t.commit.srv_format &&
+                wit->second.srv_mips == t.commit.mip_count &&
+                wit->second.texture->width() == t.commit.mips[0].w &&
+                wit->second.texture->height() == t.commit.mips[0].h &&
+                UploadStagedGuestTextureInPlace(context, wit->second.texture,
+                                                t.gt.upload, t.commit)) {
+              g_r.device->DestroyDeferred(t.gt.texture);
+              g_r.device->DestroyDeferred(t.gt.upload);
+              wit->second.payload_fp = t.gt.payload_fp;
+              wit->second.near_black = t.gt.near_black;
+              wit->second.incomplete = t.gt.incomplete;
+              wit->second.fail_count = t.gt.fail_count;
+              wit->second.recheck_frame = 0;
+              wit->second.last_change_frame = frame_number;
+              committed_tex = true;
+              continue;
+            }
           }
           if (!t.valid) {
             t.gt.fail_count = wit->second.fail_count;  // keep the backoff arc
           }
           t.gt.last_used_frame = wit->second.last_used_frame;
-          RetireGuestTexture(wit->second, context.device->CurrentSubmission());
+          RetireGuestTexture(wit->second);
           g_r.tex_store.erase(wit);
         }
         if (t.valid) {
@@ -6012,9 +6134,8 @@ void ReleaseRetiredAndFlushCaches(const NativeGuestOutputRenderContext& context)
   // GPU is done with the current submission) so hot-toggled decode settings
   // rebuild the world with the new rules this frame.
   if (g_flush_textures.exchange(false, std::memory_order_relaxed)) {
-    const uint64_t submission = context.device->CurrentSubmission();
     for (auto& [key, t] : g_r.tex_store) {
-      RetireGuestTexture(t, submission);
+      RetireGuestTexture(t);
     }
     g_r.tex_store.clear();
     g_r.tex_routes.clear();
@@ -6569,9 +6690,40 @@ bool RenderShadowAtlas(const NativeGuestOutputRenderContext& context,
           continue;
         }
         std::memcpy(g_r.bone_ring_cpu + bone_region + offset, item.bones.data(), bytes);
+        // Character-size scaling for skinned items: scale bone translations
+        // around the root bone (bone 0) position so the character grows/shrinks
+        // around its own root, not the world origin.
+        if ((item.char_family == 1 || item.char_family == 2) &&
+            item.bones.size() >= 12) {
+          const float cs = float(REXCVAR_GET(
+              skate3_native_render_scene_character_size));
+          if (cs != 1.0f) {
+            auto* dst = reinterpret_cast<float*>(g_r.bone_ring_cpu + bone_region + offset);
+            const size_t nb = item.bones.size() / 12;
+            const float root[3] = {dst[3], dst[7], dst[11]};
+            for (size_t b = 0; b < nb; ++b) {
+              const size_t base = b * 12;
+              for (int r = 0; r < 3; ++r) {
+                for (int c = 0; c < 3; ++c) {
+                  dst[base + r * 4 + c] *= cs;
+                }
+                float& t = dst[base + r * 4 + 3];
+                t = root[r] + (t - root[r]) * cs;
+              }
+            }
+          }
+        }
         g_r.bone_ring_offset = offset + bytes;
         c.bone_offset = offset;
         c.bones = true;
+        // F3: publish this item's ring offset so the MAIN pass can reuse it
+        // instead of duplicating the identical bone palette later this frame
+        // (same item, same immutable scene.items, shadow pass runs first).
+        // Record the cs value used during the shadow pass so the main pass can
+        // reject the reuse if the cvar changed between passes this frame.
+        const float pub_cs = float(REXCVAR_GET(
+            skate3_native_render_scene_character_size));
+        g_f3_shadow_bones.push_back(F3ShadowBoneEntry{&item, offset, pub_cs});
       }
       casters.push_back(c);
     }
@@ -6635,12 +6787,33 @@ bool RenderShadowAtlas(const NativeGuestOutputRenderContext& context,
             // behind the sim by design (dyn decode jobs).
             float constants[52] = {};
             std::memcpy(constants, c.item->world, sizeof(c.item->world));
+            // Character-size scaling for non-skinned char_family items in the
+            // shadow pass (skinned items are scaled via bone palette upload).
+            // Translation scales about the character root like the main pass
+            // (item.root_valid; unscaled when no trusted root exists).
+            if ((c.item->char_family == 1 || c.item->char_family == 2) &&
+                !c.item->skinned) {
+              const float cs = float(REXCVAR_GET(
+                  skate3_native_render_scene_character_size));
+              if (cs != 1.0f) {
+                for (int i = 0; i < 12; ++i) {
+                  constants[i] *= cs;
+                }
+                if (c.item->root_valid) {
+                  for (int r = 0; r < 3; ++r) {
+                    constants[12 + r] =
+                        c.item->root_pos[r] +
+                        (constants[12 + r] - c.item->root_pos[r]) * cs;
+                  }
+                }
+              }
+            }
             float* mvp = constants + 16;
             for (int r = 0; r < 4; ++r) {
               for (int col = 0; col < 4; ++col) {
                 float sum = 0.0f;
                 for (int k = 0; k < 4; ++k) {
-                  sum += c.item->world[r * 4 + k] * lightvp[k * 4 + col];
+                  sum += constants[r * 4 + k] * lightvp[k * 4 + col];
                 }
                 mvp[r * 4 + col] = sum;
               }
@@ -7699,6 +7872,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       RendererState::kBoneRegionSize;
   g_r.bone_ring_offset = 0;
   g_r.ropa_ring_offset = 0;
+  // F3: the shadow-bone reuse cache is per-frame; both passes allocate from
+  // the same ring region below this reset, so drop last frame's entries.
+  g_f3_shadow_bones.clear();
 
   {
     const std::string tm(REXCVAR_GET(skate3_native_render_scene_trace_mesh));
@@ -7836,9 +8012,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
   // detail sets, one-shot UI art) age out once nothing routes to them; the
   // mesh cache ages out streamed-out arenas the same way.
   UpdateEvictFpsEstimate(frame_number);
-  EvictTexStore(frame_number, context.device->CurrentSubmission());
+  EvictTexStore(frame_number);
   EvictMeshStore(frame_number);
-  EvictCubeStore(frame_number, context.device->CurrentSubmission());
+  EvictCubeStore(frame_number);
 
   bool shadow_ready = false;
   uint32_t shadow_draws = 0;
@@ -8620,6 +8796,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
                         e.incomplete ? "inc" : "", e.near_black ? "nb" : "");
           }
           EnqueueWordsMiss(route.key, e.fetch_words);
+          if (e.near_black && e.nb_redecodes < 3) {
+            ++e.nb_redecodes;
+          }
         }
       }
       return &e;
@@ -8806,6 +8985,29 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     }
     float constants[52] = {};
     std::memcpy(constants, item.world, sizeof(item.world));
+    // Character size scaling: for non-skinned char_family 1/2 items, scale
+    // the world 3x3 linear rows (correct for rigid pieces positioned by the
+    // world matrix). Skinned items are scaled via the bone palette instead
+    // (see bone-upload sites below) to avoid breaking bone-placed vertices
+    // that are already in absolute world space. The translation is scaled
+    // about the character's root (item.root_pos, bone 0 of a same-entity
+    // skinned sibling) so rigid accessories track the scaled body; with no
+    // trusted root the translation stays unscaled (pre-fix behavior).
+    if ((item.char_family == 1 || item.char_family == 2) && !item.skinned) {
+      const float cs = float(REXCVAR_GET(
+          skate3_native_render_scene_character_size));
+      if (cs != 1.0f) {
+        for (int i = 0; i < 12; ++i) {
+          constants[i] *= cs;
+        }
+        if (item.root_valid) {
+          for (int r = 0; r < 3; ++r) {
+            constants[12 + r] =
+                item.root_pos[r] + (constants[12 + r] - item.root_pos[r]) * cs;
+          }
+        }
+      }
+    }
     if (item.unlit) {
       // sky.*: the dome mesh is CAMERA-RELATIVE (sky.fx defaultVS adds
       // g_vViewPos to every vertex). Anchoring it at the world origin put
@@ -8831,12 +9033,60 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // Bone palette upload for skinned items; tint.g flags skinning.
     bool bones_bound = false;
     if (item.skinned && !item.bones.empty()) {
-      const uint32_t bytes = uint32_t(item.bones.size() * sizeof(float));
-      const uint32_t offset = (g_r.bone_ring_offset + 255u) & ~255u;
-      if (offset + bytes <= RendererState::kBoneRegionSize) {
-        std::memcpy(g_r.bone_ring_cpu + bone_region + offset, item.bones.data(), bytes);
-        g_r.bone_ring_offset = offset + bytes;
-        cmd->SetBufferSrv(3, g_r.bone_ring, bone_region + offset);
+      // F3: if the SHADOW pass already uploaded THIS item's (identical,
+      // immutable) bones to the ring earlier in this same RenderScene frame,
+      // reuse that published offset instead of the redundant second memcpy.
+      // The cache is keyed on the DrawItem* identity and was cleared at the
+      // frame's bone-ring reset; only skinned main-pass items reach this scan,
+      // and the shadow castees set is small (characters/vehicles). The binding
+      // below reads the already-written region (this pass runs after the
+      // shadow pass), so no data is duplicated and no ring space is wasted.
+      uint32_t bound_offset = 0;
+      bool reused = false;
+      const float cur_cs = float(REXCVAR_GET(
+          skate3_native_render_scene_character_size));
+      for (const F3ShadowBoneEntry& e : g_f3_shadow_bones) {
+        if (e.item == &item && e.cs == cur_cs) {
+          bound_offset = e.offset;
+          reused = true;
+          break;
+        }
+      }
+      if (!reused) {
+        const uint32_t bytes = uint32_t(item.bones.size() * sizeof(float));
+        const uint32_t offset = (g_r.bone_ring_offset + 255u) & ~255u;
+        if (offset + bytes <= RendererState::kBoneRegionSize) {
+          std::memcpy(g_r.bone_ring_cpu + bone_region + offset,
+                      item.bones.data(), bytes);
+          // Character-size scaling for skinned items not already uploaded by
+          // the shadow pass: scale bone translations around root bone.
+          if ((item.char_family == 1 || item.char_family == 2) &&
+              item.bones.size() >= 12) {
+            const float cs = float(REXCVAR_GET(
+                skate3_native_render_scene_character_size));
+            if (cs != 1.0f) {
+              auto* dst = reinterpret_cast<float*>(g_r.bone_ring_cpu + bone_region + offset);
+              const size_t nb = item.bones.size() / 12;
+              const float root[3] = {dst[3], dst[7], dst[11]};
+              for (size_t b = 0; b < nb; ++b) {
+                const size_t base = b * 12;
+                for (int r = 0; r < 3; ++r) {
+                  for (int c = 0; c < 3; ++c) {
+                    dst[base + r * 4 + c] *= cs;
+                  }
+                  float& t = dst[base + r * 4 + 3];
+                  t = root[r] + (t - root[r]) * cs;
+                }
+              }
+            }
+          }
+          g_r.bone_ring_offset = offset + bytes;
+          bound_offset = offset;
+          reused = true;
+        }
+      }
+      if (reused) {
+        cmd->SetBufferSrv(3, g_r.bone_ring, bone_region + bound_offset);
         bones_bound = true;
       }
     }
@@ -10042,8 +10292,8 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     g_occl_pub_ms.store(now_ms, std::memory_order_relaxed);
   }
   if (REXCVAR_GET(skate3_native_render_scene_sort_opaque) && debug_mode == 0) {
-    std::stable_sort(opaque_items.begin(), opaque_items.end(),
-                     [](const auto& a, const auto& b) { return a.first < b.first; });
+    std::sort(opaque_items.begin(), opaque_items.end(),
+              [](const auto& a, const auto& b) { return a.first < b.first; });
   }
   for (const auto& [dist, item] : opaque_items) {
     timed_draw(*item);
@@ -10221,7 +10471,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
                         "retire + fresh decode",
                         frame_number, key);
           }
-          RetireGuestTexture(it->second, context.device->CurrentSubmission());
+          RetireGuestTexture(it->second);
           g_r.tex_store.erase(it);
           it = g_r.tex_store.end();  // falls into the inline decode below
         } else {
@@ -11564,6 +11814,8 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
 
 bool SceneFailed() { return g_r.failed; }
 
+nrhi::Device* GetNativeSceneDevice() { return g_r.device; }
+
 void ResetSceneFailure() {
   if (g_r.failed) {
     g_r.failed = false;
@@ -11594,6 +11846,7 @@ namespace skate3::native_scene {
 void Install() {}
 bool SceneFailed() { return false; }
 void ResetSceneFailure() {}
+nrhi::Device* GetNativeSceneDevice() { return nullptr; }
 }  // namespace skate3::native_scene
 
 #endif  // REX_HAS_D3D12 || REX_HAS_VULKAN

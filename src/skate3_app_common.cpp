@@ -1,7 +1,9 @@
 #include "skate3_app_common.h"
 
 #include "skate3_demo_path.h"
+#include "skate3_crash_log.h"
 #include "skate3_fov.h"
+#include "skate3_freecam_input.h"
 #include "skate3_iso_installer.h"
 #include "skate3_native_render.h"
 #include "skate3_native_scene.h"
@@ -87,6 +89,8 @@ REXCVAR_DECLARE(bool, skate3_native_render_scene_showcase);
 // and while it captures input the guest input system is gated off.
 REXCVAR_DECLARE(bool, skate3_native_render_scene_freecam);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_freecam_capture_input);
+// Defined in skate3_native_scene.cpp; the 2D/HUD toggle hotkey below flips it.
+REXCVAR_DECLARE(bool, skate3_native_render_scene_2d);
 
 REXCVAR_DEFINE_STRING(skate3_dlc_root, "", "Skate 3",
                       "Directory containing Skate 3 DLC package files");
@@ -677,6 +681,15 @@ std::optional<rex::PathConfig> Skate3BaseApp::OnFinalizePaths(
 }
 
 void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
+  // The rexglue SDK ships three overlay hotkeys on plain function keys:
+  //   F2 = fps counter, F3 = debug overlay, F4 = settings overlay.
+  // ProcessKeyEvent feeds a key to the FIRST registered bind, and the SDK
+  // registers its binds before calling OnCreateDialogs here - so on F3/F4
+  // the SDK wins and the skate3 binds below would never fire. Repoint the
+  // SDK overlays to Ctrl+ variants so the plain F3/F4 keys are free for the
+  // skate3 PERF menu and the 2D-HUD toggle (they stay reachable).
+  rex::cvar::SetFlagByName("bind_debug_overlay", "Ctrl+F3");
+  rex::cvar::SetFlagByName("bind_settings", "Ctrl+F4");
   // Native/emulated corner readout (top right; off by default, cvar
   // skate3_native_render_mode_indicator shows it live). Input-transparent,
   // so it never affects cursor or focus handling.
@@ -723,6 +736,9 @@ void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
                         "Native render debug menu", [this] {
                           ToggleNativeDebug();
                         });
+  rex::ui::RegisterBind("bind_skate3_perf_menu", "F3", "Performance menu", [this] {
+    TogglePerformanceWindow();
+  });
   rex::ui::RegisterBind("bind_skate3_showcase", "Ctrl+Shift+B",
                         "Graphics build-up showcase", [] {
                           // A capture/recording tool, not a player feature:
@@ -736,11 +752,17 @@ void Skate3BaseApp::OnCreateDialogs(rex::ui::ImGuiDrawer* drawer) {
                               skate3_native_render_scene_showcase,
                               !REXCVAR_GET(skate3_native_render_scene_showcase));
                         });
-  rex::ui::RegisterBind("bind_skate3_freecam", "End",
-                        "Drone camera (free fly)", [] {
+  rex::ui::RegisterBind("bind_skate3_freecam", "F7",
+                        "Drone camera (free fly, AZERTY ZQSD)", [] {
                           REXCVAR_SET(
                               skate3_native_render_scene_freecam,
                               !REXCVAR_GET(skate3_native_render_scene_freecam));
+                        });
+  rex::ui::RegisterBind("bind_skate3_toggle_2d", "F4",
+                        "Toggle 2D/APT HUD overlay", [] {
+                          REXCVAR_SET(
+                              skate3_native_render_scene_2d,
+                              !REXCVAR_GET(skate3_native_render_scene_2d));
                         });
 }
 
@@ -748,6 +770,17 @@ void Skate3BaseApp::OnPostSetup() {
   skate3::shader_disasm::RunIfRequested();
   ApplySelectedProfileToRuntime();
   ApplyGameplayCursorMode();
+  // Crash diagnostics: install the hard-fault handler as early as possible so
+  // any later fault during setup or the guest runloop produces a copyable
+  // report (crash_log.txt next to the executable) instead of a bare kill.
+  skate3::crashlog::Install();
+  // The drone/free-fly cam sources its keyboard/mouse from the app's window
+  // event mirror on every platform (the raw GetAsyncKeyState path in
+  // UpdateFreecam is Windows-only). Independent of the MnK controller-emulation
+  // driver so mnk_mode doesn't have to be enabled to fly.
+  if (window()) {
+    skate3::freecam_input::Register(window());
+  }
 
   if (auto* input_system = static_cast<rex::input::InputSystem*>(runtime()->input_system())) {
     input_system->SetActiveCallback([this]() {
@@ -814,16 +847,21 @@ void Skate3BaseApp::OnPostSetup() {
 }
 
 void Skate3BaseApp::OnShutdown() {
+  if (window()) {
+    skate3::freecam_input::Unregister(window());
+  }
   rex::ui::UnregisterBind("bind_skate3_menu");
   rex::ui::UnregisterBind("bind_skate3_menu_alt");
   rex::ui::UnregisterBind("bind_skate3_save_draw_fingerprints");
   rex::ui::UnregisterBind("bind_skate3_log_debug_marker");
   rex::ui::UnregisterBind("bind_skate3_log_user_marker");
   rex::ui::UnregisterBind("bind_skate3_native_debug");
+  rex::ui::UnregisterBind("bind_skate3_perf_menu");
   ApplyGameplayCursorMode();
   skate3::native_scene::SetSettingsMenuBlur(false);
   simple_settings_dialog_.reset();
   native_debug_dialog_.reset();
+  performance_dialog_.reset();
   render_mode_indicator_.reset();
 }
 
@@ -941,6 +979,20 @@ void Skate3BaseApp::ToggleNativeDebug() {
   } else {
     ApplySettingsCursorMode();
     native_debug_dialog_->Show();
+  }
+}
+
+void Skate3BaseApp::TogglePerformanceWindow() {
+  if (!performance_dialog_) {
+    performance_dialog_ =
+        std::make_unique<skate3::PerformanceDialog>(imgui_drawer());
+  }
+  if (performance_dialog_->visible()) {
+    performance_dialog_->Hide();
+    ApplyGameplayCursorMode();
+  } else {
+    ApplySettingsCursorMode();
+    performance_dialog_->Show();
   }
 }
 

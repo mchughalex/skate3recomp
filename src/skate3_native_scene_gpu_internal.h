@@ -9,6 +9,7 @@
 #include "skate3_native_scene_state.h"
 
 #include <unordered_set>
+#include <vector>
 
 #if (defined(REX_HAS_D3D12) && REX_HAS_D3D12) || (defined(REX_HAS_VULKAN) && REX_HAS_VULKAN)
 
@@ -513,6 +514,23 @@ struct RendererState {
   nrhi::TextureView* blur_srv[2] = {nullptr, nullptr};
   nrhi::TextureView* output_srv_slot = nullptr;
   bool output_srv_allocated = false;
+  // Sampled views of the guest-output mailbox images. The Vulkan presenter
+  // rotates among a small set of guest-output images (a 3-image mailbox) on
+  // every refresh, so context.guest_output toggles between those images each
+  // frame: before the cache, output_srv_slot recreated its VkImageView on
+  // EVERY rotation (a per-frame fullscreen view create+destroy -> the
+  // recurring DrainRetired micro-stutter). Cache one view per output image
+  // and reuse it on rotation; a view is created only when a NEW output
+  // texture (genuine resize) appears, and stale entries are forgotten (not
+  // deferred-destroyed) because the RHI owns the guest-output wrapper
+  // lifetime.
+  struct OutputViewEntry {
+    nrhi::Texture* tex = nullptr;
+    nrhi::TextureView* view = nullptr;
+    uint32_t seq = 0;  // last-use stamp (monotonic tick)
+  };
+  std::vector<OutputViewEntry> output_views;
+  uint32_t output_view_seq = 0;
   nrhi::Pipeline* pso_blur = nullptr;
   nrhi::Pipeline* pso_blur_blit = nullptr;
   nrhi::Pipeline* pso_blur_down = nullptr;
@@ -1043,6 +1061,11 @@ bool EnsureOutputSizedTargets(const NativeGuestOutputRenderContext& context);
 // Umbrella builder: runs every group above (plus the base device/queue
 // setup) and latches g_r.failed on an unrecoverable failure.
 bool EnsurePipeline(const NativeGuestOutputRenderContext& context);
+// Sampled view of the current guest-output texture, backed by the
+// per-mailbox-image cache (see RendererState::output_views). Returns the view
+// for context.guest_output, reusing the cached view on mailbox rotation and
+// creating a fresh view only when the output texture is genuinely new.
+nrhi::TextureView* EnsureOutputSrvView(const NativeGuestOutputRenderContext& context);
 // Shader-desc helper: pairs the HLSL source with its offline-compiled
 // SPIR-V blob (Vulkan) by {file, entry, variant}.
 nrhi::ShaderDesc MakeShaderDesc(nrhi::ShaderStage stage, const char* file,

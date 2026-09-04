@@ -31,6 +31,24 @@ class NativeDebugDialog final : public rex::ui::ImGuiDialog {
   bool visible_ = false;
 };
 
+// Standalone PERF menu (F3): MangoHUD-style performance dashboard, opened
+// and closed by the F3 key. Fully independent of the F12 debug menu.
+class PerformanceDialog final : public rex::ui::ImGuiDialog {
+ public:
+  explicit PerformanceDialog(rex::ui::ImGuiDrawer* drawer) : ImGuiDialog(drawer) {}
+
+  void Show();
+  void Hide();
+  void Toggle();
+  bool visible() const { return visible_; }
+
+ protected:
+  void OnDraw(ImGuiIO& io) override;
+
+ private:
+  bool visible_ = false;
+};
+
 // Tiny top-right corner readout of which renderer produced the last
 // presented frame: NATIVE (native scene renderer) or EMULATED (Xenos
 // GPU emulation; menus/loading yields, F5 off). Input-transparent, no

@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <string>
 #include <vector>
 
@@ -9,10 +10,12 @@
 
 #include <rex/cvar.h>
 #include <rex/graphics/native_guest_renderer.h>
+#include <rex/graphics/vulkan/native_rhi_vulkan.h>
 #include <rex/logging.h>
 #include <rex/ui/presenter.h>
 
 #include "skate3_native_scene.h"
+#include "skate3_native_scene_state.h"
 
 REXCVAR_DEFINE_BOOL(skate3_native_render_mode_indicator, false, "Skate 3",
                     "Small top-right corner readout of which renderer produced the "
@@ -37,6 +40,8 @@ REXCVAR_DECLARE(bool, skate3_native_render_scene_splines);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_quadlists);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_world_items);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_dynamic_items);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_nude);
+REXCVAR_DECLARE(double, skate3_native_render_scene_character_size);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_lw_fade);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_lw_identity);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_lw_gap_fill);
@@ -80,6 +85,7 @@ REXCVAR_DECLARE(double, skate3_native_render_scene_shadow_static_bias);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_sun_override);
 REXCVAR_DECLARE(double, skate3_native_render_scene_sun_azimuth);
 REXCVAR_DECLARE(double, skate3_native_render_scene_sun_elevation);
+REXCVAR_DECLARE(double, skate3_native_render_scene_sun_brightness);
 REXCVAR_DECLARE(int32_t, skate3_native_render_scene_refl_mode);
 REXCVAR_DECLARE(double, skate3_native_render_scene_refl_lod);
 REXCVAR_DECLARE(double, skate3_native_render_scene_refl_bias_x);
@@ -108,6 +114,20 @@ REXCVAR_DECLARE(bool, skate3_native_render_scene_ssr);
 REXCVAR_DECLARE(double, skate3_draw_distance_scale);
 REXCVAR_DECLARE(double, skate3_lod_distance_scale);
 REXCVAR_DECLARE(double, skate3_draw_distance_stream_probe);
+// Renderer / perf / diagnostics toggles exposed from skate3_native_scene.cpp
+// and native/diagnostics (the "easy wins" — present but previously unexposed).
+REXCVAR_DECLARE(bool, skate3_native_render_scene_world_v2);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_dynobj_v2);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_occlusion_cull);
+REXCVAR_DECLARE(double, skate3_native_render_scene_2d_sharp);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_ssao_debug);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_shadow_caster_parity);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_char_rows_inst);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_caster_refresh_all);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_perf_log);
+REXCVAR_DECLARE(int32_t, skate3_native_render_scene_perf_interval);
+REXCVAR_DECLARE(bool, skate3_native_render_scene_perf_items);
+REXCVAR_DECLARE(bool, skate3_native_render_capture_hotkeys);
 
 namespace skate3 {
 namespace {
@@ -292,6 +312,10 @@ void DrawMaxQualityToggle() {
 
 bool s_showcase_setup_open = false;
 
+// ---- Performance window ----------------------------------------------------
+// Standalone PERF menu (F2): MangoHUD-style dashboard, opened and closed by
+// the F2 key, fully independent of the F12 debug menu.
+
 struct ShowcaseRow {
   const skate3::native_scene::ShowcaseLayer* layer;
   bool enabled;
@@ -399,7 +423,7 @@ bool ShowcaseLayerAvailable(uint32_t bit) {
 void DrawFreecamControls() {
   ImGui::SeparatorText("Drone camera");
   bool freecam = REXCVAR_GET(skate3_native_render_scene_freecam);
-  if (ImGui::Checkbox("Free-fly drone cam (End)", &freecam)) {
+  if (ImGui::Checkbox("Free-fly drone cam (F7, AZERTY ZQSD)", &freecam)) {
     REXCVAR_SET(skate3_native_render_scene_freecam, freecam);
   }
   ImGui::SameLine();
@@ -415,13 +439,13 @@ void DrawFreecamControls() {
   REXCVAR_SET(skate3_native_render_scene_freecam_speed,
               CvarSlider("fly speed (m/s)",
                          REXCVAR_GET(skate3_native_render_scene_freecam_speed),
-                         0.5f, 60.0f, "%.1f",
+                         0.5f, 100.0f, "%.1f",
                          "Base fly speed; Shift = 4x, Ctrl = 0.2x"));
   REXCVAR_SET(
       skate3_native_render_scene_freecam_look_speed,
       CvarSlider("look speed (deg/s)",
                  REXCVAR_GET(skate3_native_render_scene_freecam_look_speed),
-                 20.0f, 240.0f, "%.0f", "Arrow-key look rate"));
+                 20.0f, 360.0f, "%.0f", "Arrow-key look rate"));
   ImGui::TextDisabled(
       "WASD fly, E/Space up, Q/C down, arrows or right-mouse drag look,\n"
       "Z/X zoom, Shift fast, Ctrl slow.");
@@ -628,6 +652,8 @@ void DrawImageQualitySection() {
                            "gradients."));
 }
 
+void SeedSunFromCaptured();
+
 void DrawLightingPostSection() {
   REXCVAR_SET(skate3_native_render_scene_hdr,
               CvarCheckbox("HDR intermediate",
@@ -689,7 +715,7 @@ void DrawLightingPostSection() {
   REXCVAR_SET(skate3_native_render_scene_haze_intensity,
               CvarSlider("haze intensity",
                          REXCVAR_GET(skate3_native_render_scene_haze_intensity),
-                         0.0f, 0.5f, "%.3f"));
+                         0.0f, 0.6f, "%.3f"));
   REXCVAR_SET(skate3_native_render_scene_haze_density,
               CvarSlider("haze density (1/unit)",
                          REXCVAR_GET(skate3_native_render_scene_haze_density),
@@ -727,31 +753,110 @@ void DrawLightingPostSection() {
                      "shade and the sky dome's painted sun stay put (game "
                      "content).");
     if (now_on && !was_on) {
-      // Seed the sliders from the captured sun so enabling the override
-      // starts at the true position instead of jumping.
-      float sun[3];
-      skate3::native_scene::GetCapturedSunDir(sun);
-      const float kRad = 57.29577951f;
-      REXCVAR_SET(skate3_native_render_scene_sun_azimuth,
-                  double(std::fmod(std::atan2(sun[0], sun[2]) * kRad + 360.0f,
-                                   360.0f)));
-      REXCVAR_SET(
-          skate3_native_render_scene_sun_elevation,
-          double(std::clamp(std::asin(std::clamp(sun[1], -1.0f, 1.0f)) * kRad,
-                            2.0f, 88.0f)));
+      SeedSunFromCaptured();
     }
     REXCVAR_SET(skate3_native_render_scene_sun_override, now_on);
   }
+  if (REXCVAR_GET(skate3_native_render_scene_sun_override)) {
+    REXCVAR_SET(skate3_native_render_scene_sun_azimuth,
+                CvarSlider("sun azimuth (deg)",
+                           REXCVAR_GET(skate3_native_render_scene_sun_azimuth),
+                           0.0f, 360.0f, "%.0f"));
+    REXCVAR_SET(skate3_native_render_scene_sun_elevation,
+                CvarSlider("sun elevation (deg)",
+                           REXCVAR_GET(skate3_native_render_scene_sun_elevation),
+                           2.0f, 88.0f, "%.0f",
+                           "Low elevations give long shadows and the most visible "
+                           "volumetric shafts."));
+  }
+}
+
+void SeedSunFromCaptured() {
+  // Seed the sun override sliders from the captured sun direction so tuning
+  // starts at the true position instead of jumping.
+  float sun[3];
+  skate3::native_scene::GetCapturedSunDir(sun);
+  const float kRad = 57.29577951f;
   REXCVAR_SET(skate3_native_render_scene_sun_azimuth,
-              CvarSlider("sun azimuth (deg)",
-                         REXCVAR_GET(skate3_native_render_scene_sun_azimuth),
-                         0.0f, 360.0f, "%.0f"));
+              double(std::fmod(std::atan2(sun[0], sun[2]) * kRad + 360.0f, 360.0f)));
   REXCVAR_SET(skate3_native_render_scene_sun_elevation,
-              CvarSlider("sun elevation (deg)",
-                         REXCVAR_GET(skate3_native_render_scene_sun_elevation),
-                         2.0f, 88.0f, "%.0f",
-                         "Low elevations give long shadows and the most visible "
-                         "volumetric shafts."));
+              double(std::clamp(std::asin(std::clamp(sun[1], -1.0f, 1.0f)) * kRad,
+                                2.0f, 88.0f)));
+}
+
+void DrawWeatherSection() {
+  // A one-shot "weather" presenter: each preset writes the sun override,
+  // haze and bloom cvars to a coherent overcast/clear/hazy/golden look.
+  // These bind the sames hot-reload cvars the Lighting & post sliders drive,
+  // so the sliders still show (and can tweak) the applied preset afterwards.
+  const char* kNeverHint =
+      "Preset scales the captured sun; disabling the override restores the "
+      "game's authored sun (the Overcast/Night presets default to having the "
+      "override ON so a preview is shown).";
+
+  if (ImGui::Button("Reset to captured sun")) {
+    SeedSunFromCaptured();
+    REXCVAR_SET(skate3_native_render_scene_sun_override, false);
+    REXCVAR_SET(skate3_native_render_scene_sun_brightness, 1.0);
+  }
+
+  if (ImGui::Button("Clear / midday")) {
+    REXCVAR_SET(skate3_native_render_scene_sun_override, false);
+    REXCVAR_SET(skate3_native_render_scene_sun_brightness, 1.0);
+    REXCVAR_SET(skate3_native_render_scene_haze, false);
+    REXCVAR_SET(skate3_native_render_scene_bloom_intensity, 0.08);
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Overcast (grey)")) {
+    REXCVAR_SET(skate3_native_render_scene_sun_override, true);
+    REXCVAR_SET(skate3_native_render_scene_sun_azimuth, 220.0);
+    REXCVAR_SET(skate3_native_render_scene_sun_elevation, 40.0);
+    REXCVAR_SET(skate3_native_render_scene_sun_brightness, 1.0);
+    REXCVAR_SET(skate3_native_render_scene_haze, true);
+    REXCVAR_SET(skate3_native_render_scene_haze_intensity, 0.22);
+    REXCVAR_SET(skate3_native_render_scene_haze_density, 0.018);
+    REXCVAR_SET(skate3_native_render_scene_bloom_intensity, 0.03);
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Hazy / dusty")) {
+    REXCVAR_SET(skate3_native_render_scene_sun_override, false);
+    REXCVAR_SET(skate3_native_render_scene_sun_brightness, 1.0);
+    REXCVAR_SET(skate3_native_render_scene_haze, true);
+    REXCVAR_SET(skate3_native_render_scene_haze_intensity, 0.34);
+    REXCVAR_SET(skate3_native_render_scene_haze_density, 0.014);
+    REXCVAR_SET(skate3_native_render_scene_bloom_intensity, 0.06);
+  }
+  if (ImGui::Button("Golden hour (low sun)")) {
+    REXCVAR_SET(skate3_native_render_scene_sun_override, true);
+    REXCVAR_SET(skate3_native_render_scene_sun_azimuth, 220.0);
+    REXCVAR_SET(skate3_native_render_scene_sun_elevation, 8.0);
+    REXCVAR_SET(skate3_native_render_scene_sun_brightness, 0.7);
+    REXCVAR_SET(skate3_native_render_scene_haze, true);
+    REXCVAR_SET(skate3_native_render_scene_haze_intensity, 0.55);
+    REXCVAR_SET(skate3_native_render_scene_haze_density, 0.012);
+    REXCVAR_SET(skate3_native_render_scene_bloom_intensity, 0.28);
+  }
+  ImGui::SameLine();
+  if (ImGui::Button("Night (dark sun)")) {
+    REXCVAR_SET(skate3_native_render_scene_sun_override, true);
+    REXCVAR_SET(skate3_native_render_scene_sun_azimuth, 180.0);
+    REXCVAR_SET(skate3_native_render_scene_sun_elevation, 2.0);
+    REXCVAR_SET(skate3_native_render_scene_sun_brightness, 0.15);
+    REXCVAR_SET(skate3_native_render_scene_haze, true);
+    REXCVAR_SET(skate3_native_render_scene_haze_intensity, 0.10);
+    REXCVAR_SET(skate3_native_render_scene_haze_density, 0.010);
+    REXCVAR_SET(skate3_native_render_scene_bloom_intensity, 0.12);
+  }
+  ImGui::TextDisabled("%s", kNeverHint);
+
+  ImGui::Separator();
+  // Sun/scene brightness: standalone (works with sun override off) so you can
+  // dim the whole scene toward night regardless of the direction override.
+  REXCVAR_SET(skate3_native_render_scene_sun_brightness,
+              CvarSlider("sun brightness", REXCVAR_GET(skate3_native_render_scene_sun_brightness),
+                         0.0f, 5.0f, "%.2f",
+                         "1.0 = captured look; <1.0 dims the world/props/sky/"
+                         "characters toward night. The Night preset sets ~0.15."));
 }
 
 void DrawShadowsSection() {
@@ -845,6 +950,19 @@ void DrawSceneContentSection() {
                            REXCVAR_GET(skate3_native_render_scene_dynamic_items),
                            "Characters, movable props, cloth (RenderMesh/world-path "
                            "captures)"));
+  REXCVAR_SET(skate3_native_render_scene_nude,
+              CvarCheckbox("Nude mode (hide clothes)",
+                           REXCVAR_GET(skate3_native_render_scene_nude),
+                           "Suppress Ropa cloth-sim garments (player tees, NPC "
+                           "jackets, hair_ropa) so skaters render as just their "
+                           "skin/body layer"));
+  REXCVAR_SET(
+      skate3_native_render_scene_character_size,
+      CvarSlider("character size",
+                 REXCVAR_GET(skate3_native_render_scene_character_size),
+                 0.1f, 5.0f, "%.2f",
+                 "Uniform scale multiplier for skater/NPC characters "
+                 "(char_family 1/2). 1.0 = normal, 2.0 = double."));
   REXCVAR_SET(
       skate3_native_render_scene_lw_fade,
       CvarCheckbox("LW entity fade (store)",
@@ -895,9 +1013,277 @@ void DrawSceneContentSection() {
   REXCVAR_SET(skate3_native_render_scene_splines,
               CvarCheckbox("Neon splines", REXCVAR_GET(skate3_native_render_scene_splines),
                            "Waypoint arrows / marker beams"));
+
+  ImGui::TextUnformatted("Renderer toggles (A/B probes)");
+  REXCVAR_SET(skate3_native_render_scene_world_v2,
+              CvarCheckbox("World renderer v2",
+                           REXCVAR_GET(skate3_native_render_scene_world_v2),
+                           "World sort-list items use the v2 path (the modern "
+                           "static-geometry renderer)"));
+  REXCVAR_SET(skate3_native_render_scene_dynobj_v2,
+              CvarCheckbox("Dynamic-object renderer v2",
+                           REXCVAR_GET(skate3_native_render_scene_dynobj_v2),
+                           "Dynamic-object items use the v2 path"));
+  REXCVAR_SET(skate3_native_render_scene_occlusion_cull,
+              CvarCheckbox("Depth-grid occlusion cull",
+                           REXCVAR_GET(skate3_native_render_scene_occlusion_cull),
+                           "GPU depth-grid occlusion culling of world/static "
+                           "items. Off = draw everything (perf probe; some "
+                           "overdraw)"));
 }
 
-void DrawPacingSection() {
+// ---- Performance window (MangoHUD-style) -----------------------------------
+// Consolidated live readout: FPS counter, frame-time graph, RHI timing,
+// GPU resource ledger, scene stats. All data from already-available APIs.
+// Standalone PERF menu (F2), opened and closed by the F2 key, fully
+// independent of the F12 debug menu. Also hosts the pacing and perf-logging
+// / capture-hotkey controls that were previously spread across the F12
+// sections.
+void DrawPerformanceWindow(bool* p_open, rex::ui::Presenter* presenter) {
+  using rex::graphics::vulkan::NrDeviceDiag;
+
+  ImGui::SetNextWindowSize(ImVec2(430.0f, 0.0f), ImGuiCond_FirstUseEver);
+  if (!ImGui::Begin("Performance", p_open, ImGuiWindowFlags_NoCollapse)) {
+    ImGui::End();
+    return;
+  }
+
+  // ---- Prominent FPS counter ----
+  if (presenter && presenter->GuestFrameStatsEnabled()) {
+    const auto fs = presenter->GetGuestFrameStats();
+    const double fps = fs.fps;
+    const double frame_ms = fs.frame_time_ms;
+    const double wait_ms = fs.wait_ms;
+    const double gpu_ms = fs.gpu_ms;
+
+    // Large colored FPS readout
+    if (fps > 0.0) {
+      ImVec4 col;
+      if (fps >= 120.0) {
+        col = ImVec4(0.35f, 1.0f, 0.45f, 1.0f);  // green
+      } else if (fps >= 60.0) {
+        col = ImVec4(1.0f, 0.85f, 0.3f, 1.0f);  // yellow
+      } else {
+        col = ImVec4(1.0f, 0.35f, 0.35f, 1.0f);  // red
+      }
+      ImGui::PushFont(ImGui::GetIO().FontDefault);
+      ImGui::SetNextItemWidth(ImGui::GetFontSize() * 1.9f);
+      ImGui::TextColored(col, "%3.0f FPS", fps);
+      ImGui::PopFont();
+      ImGui::SameLine();
+      ImGui::TextDisabled("(%.1f ms)", frame_ms);
+      ImGui::SameLine();
+      ImGui::TextDisabled("wait %.1f ms", wait_ms);
+      if (gpu_ms > 0.0) {
+        ImGui::SameLine();
+        ImGui::TextDisabled("gpu %.1f ms", gpu_ms);
+      }
+    } else {
+      ImGui::TextDisabled("FPS: waiting for first frame...");
+    }
+
+    // ---- Frame-time graph with percentile stats ----
+    {
+      static std::vector<float> s_ft;
+      static std::vector<float> s_sorted;
+      if (frame_ms > 0.0) {
+        s_ft.push_back(static_cast<float>(frame_ms));
+        constexpr int kWindow = 240;
+        if (static_cast<int>(s_ft.size()) > kWindow) {
+          s_ft.erase(s_ft.begin(), s_ft.end() - kWindow);
+        }
+      }
+      if (!s_ft.empty()) {
+        s_sorted.assign(s_ft.begin(), s_ft.end());
+        std::sort(s_sorted.begin(), s_sorted.end());
+        const float avg = [&]() {
+          float sum = 0.0f;
+          for (float v : s_ft) sum += v;
+          return sum / float(s_ft.size());
+        }();
+        const float p1 = s_sorted[std::max(0, int(s_sorted.size() * 0.01f))];
+        const float p01 =
+            s_sorted[std::max(0, int(s_sorted.size() * 0.001f))];
+        ImGui::TextDisabled("frame time  avg %.1f ms   1%% low %.1f ms   "
+                            "0.1%% low %.1f ms",
+                            avg, p1, p01);
+        ImGui::PlotLines("##frametime", s_ft.data(), int(s_ft.size()), 0,
+                         nullptr, 0.0f,
+                         std::max(33.0f, avg * 2.0f),
+                         ImVec2(0, 40));
+        if (gpu_ms > 0.0f) {
+          const float gpu_ms_f = float(gpu_ms);
+          ImGui::PlotLines("##gpu_ft", &gpu_ms_f, 1, 0, nullptr, 0.0f,
+                           std::max(33.0f, float(gpu_ms) * 2.0f),
+                           ImVec2(0, 24));
+        }
+      }
+    }
+
+    // ---- GPU resource bar ----
+    if (gpu_ms > 0.0) {
+      ImGui::SeparatorText("GPU resource bar");
+      char buf[64];
+      std::snprintf(buf, sizeof(buf), "GPU %.1f ms", gpu_ms);
+      const float frac = float(gpu_ms) / 33.333f;
+      ImGui::ProgressBar(std::min(frac, 1.0f), ImVec2(-1, 0), buf);
+    }
+  } else {
+    ImGui::TextDisabled("Guest frame stats not available (presenter "
+                        "not active or stats disabled).");
+  }
+
+  // ---- Scene composition stats ----
+  {
+    std::lock_guard<std::mutex> lock(skate3::native_scene::g_scene_mutex);
+    if (skate3::native_scene::g_scene) {
+      const auto& scene = *skate3::native_scene::g_scene;
+      const uint32_t n = static_cast<uint32_t>(scene.items.size());
+      uint32_t skinned = 0;
+      uint32_t textured = 0;
+      for (const auto& it : scene.items) {
+        if (it.skinned) ++skinned;
+        if (it.diffuse_tex != 0) ++textured;
+      }
+      ImGui::SeparatorText("Scene");
+      ImGui::Columns(4, nullptr, false);
+      ImGui::Text("Items");  ImGui::NextColumn();
+      ImGui::Text("%u", n);  ImGui::NextColumn();
+      ImGui::Text("Textured");  ImGui::NextColumn();
+      ImGui::Text("%u", textured);  ImGui::NextColumn();
+      ImGui::Text("Skinned");  ImGui::NextColumn();
+      ImGui::Text("%u", skinned);  ImGui::NextColumn();
+      ImGui::Text("Generation");  ImGui::NextColumn();
+      ImGui::Text("%llu", (unsigned long long)scene.generation);  ImGui::NextColumn();
+      ImGui::Columns(1);
+    }
+  }
+
+  // ---- RHI diagnostics (ledger, drain, view churn) ----
+  {
+    rex::graphics::nrhi::Device* dev =
+        skate3::native_scene::GetNativeSceneDevice();
+    NrDeviceDiag diag{};
+    if (dev != nullptr &&
+        rex::graphics::vulkan::GetNativeRhiDiagnostics(dev, &diag)) {
+      ImGui::SeparatorText("RHI");
+
+      // Resource ledger as color-coded bars
+      const uint32_t max_live = std::max(
+          {diag.live_textures, diag.live_views, diag.live_buffers, 1u});
+      auto ResBar = [&](const char* label, uint32_t count, ImVec4 col) {
+        char buf[48];
+        std::snprintf(buf, sizeof(buf), "%s  %u", label, count);
+        ImGui::PushStyleColor(ImGuiCol_PlotHistogram, col);
+        ImGui::ProgressBar(float(count) / float(max_live), ImVec2(-1, 0), buf);
+        ImGui::PopStyleColor();
+      };
+      ResBar("textures", diag.live_textures, ImVec4(0.2f, 0.8f, 0.2f, 1.0f));
+      ResBar("views   ", diag.live_views, ImVec4(0.2f, 0.6f, 0.9f, 1.0f));
+      ResBar("buffers ", diag.live_buffers, ImVec4(0.8f, 0.5f, 0.2f, 1.0f));
+      ImGui::Text("retired backlog=%u  dissolved pending=%u",
+                  diag.retired_backlog, diag.dissolved_pending);
+
+      // Drain / view-create / view-destroy graphs
+      const uint32_t n = std::min<uint32_t>(diag.ring_frames,
+                                             NrDeviceDiag::kRingFrames);
+      if (n > 0) {
+        std::vector<float> drain(n), vd(n), vc(n);
+        uint32_t idx = diag.ring_frames >= NrDeviceDiag::kRingFrames
+                           ? diag.ring_frames % NrDeviceDiag::kRingFrames
+                           : 0;
+        for (uint32_t i = 0; i < n; ++i) {
+          const auto& s =
+              diag.ring[(idx + i) % NrDeviceDiag::kRingFrames];
+          drain[i] = float(s.drain_us);
+          vd[i] = float(s.view_destroy_us);
+          vc[i] = float(s.view_create_us);
+        }
+        ImGui::TextDisabled("RHI timing (us/frame)");
+        ImGui::PlotHistogram("drain (ms)", drain.data(), (int)n, 0, nullptr,
+                             0.0f, 20000.0f, ImVec2(0, 40));
+        ImGui::PlotHistogram("view_destroy", vd.data(), (int)n, 0, nullptr,
+                             0.0f, 20000.0f, ImVec2(0, 40));
+        ImGui::PlotHistogram("view_create", vc.data(), (int)n, 0, nullptr,
+                             0.0f, 20000.0f, ImVec2(0, 40));
+        const auto& last =
+            diag.ring[(diag.ring_frames - 1) % NrDeviceDiag::kRingFrames];
+        ImGui::Text(
+            "last: drain=%.2fms(%u) vd=%.2fms(%u) vc=%.2fms(%u) "
+            "total=%.2fms",
+            last.drain_us / 1000.0f, last.drain_calls,
+            last.view_destroy_us / 1000.0f, last.view_destroy_calls,
+            last.view_create_us / 1000.0f, last.view_create_calls,
+            last.total_us / 1000.0f);
+      }
+
+      // Fullscreen view churn trace (collapsing, diagnostic)
+      const int tc = diag.trace_count;
+      if (tc > 0) {
+        char hdr[64];
+        std::snprintf(hdr, sizeof(hdr), "fullscreen view trace (last %d)",
+                      std::min(tc, NrDeviceDiag::kTraceN));
+        if (ImGui::CollapsingHeader(hdr, ImGuiTreeNodeFlags_None)) {
+          if (ImGui::BeginTable("fv_trace", 5,
+                                ImGuiTableFlags_RowBg |
+                                    ImGuiTableFlags_Borders)) {
+            ImGui::TableSetupColumn("kind");
+            ImGui::TableSetupColumn("w");
+            ImGui::TableSetupColumn("h");
+            ImGui::TableSetupColumn("format");
+            ImGui::TableSetupColumn("frame");
+            ImGui::TableHeadersRow();
+            const int total =
+                std::min(tc, NrDeviceDiag::kTraceN);
+            const int start =
+                total >= NrDeviceDiag::kTraceN ? tc % NrDeviceDiag::kTraceN : 0;
+            for (int i = 0; i < total; ++i) {
+              const auto& e =
+                  diag.trace[(start + i) % NrDeviceDiag::kTraceN];
+              ImGui::TableNextRow();
+              ImGui::TableNextColumn();
+              ImGui::TextUnformatted(e.destroyed ? "destroy" : "create");
+              ImGui::TableNextColumn();
+              ImGui::Text("%u", e.w);
+              ImGui::TableNextColumn();
+              ImGui::Text("%u", e.h);
+              ImGui::TableNextColumn();
+              ImGui::Text("%u", e.format);
+              ImGui::TableNextColumn();
+              ImGui::Text("%llu", (unsigned long long)e.frame);
+            }
+            ImGui::EndTable();
+          }
+        }
+      }
+    } else {
+      ImGui::TextDisabled(
+          "RHI diagnostics unavailable (no native device yet, or "
+          "non-Vulkan).");
+    }
+  }
+
+  // ---- Pacing controls (compact) ----
+  ImGui::SeparatorText("Pacing");
+  {
+    int cap = int(REXCVAR_GET(skate3_guest_fps_cap));
+    if (ImGui::InputInt("Guest fps cap (0=off)", &cap, 10, 30)) {
+      if (cap < 0) cap = 0;
+      if (cap > 1000) cap = 1000;
+      REXCVAR_SET(skate3_guest_fps_cap, double(cap));
+    }
+    if (ImGui::IsItemHovered()) {
+      ImGui::SetTooltip(
+          "Pace guest frames on an even beat. Set a few fps below the "
+          "display refresh.");
+    }
+  }
+  {
+    int interval = REXCVAR_GET(skate3_native_render_scene_perf_interval);
+    if (ImGui::SliderInt("perf log interval (frames)", &interval, 60, 6000)) {
+      REXCVAR_SET(skate3_native_render_scene_perf_interval, interval);
+    }
+  }
   REXCVAR_SET(skate3_native_render_scene_smooth_camera,
               CvarCheckbox("Smooth camera + entity poses",
                            REXCVAR_GET(skate3_native_render_scene_smooth_camera),
@@ -923,21 +1309,24 @@ void DrawPacingSection() {
               CvarCheckbox("Front-to-back opaque sort",
                            REXCVAR_GET(skate3_native_render_scene_sort_opaque),
                            "Early-z rejects occluded pixels before the material shading"));
-  {
-    int cap = int(REXCVAR_GET(skate3_guest_fps_cap));
-    if (ImGui::InputInt("Guest fps cap (0 = off)", &cap, 10, 30)) {
-      if (cap < 0) cap = 0;
-      if (cap > 1000) cap = 1000;
-      REXCVAR_SET(skate3_guest_fps_cap, double(cap));
-    }
-    if (ImGui::IsItemHovered()) {
-      ImGui::SetTooltip(
-          "Pace guest frames on an even beat. Set a few fps below the display "
-          "refresh (with G-Sync/VRR this is what makes motion read as smooth; "
-          "uncapped, the guest's irregular frame times drive the refresh "
-          "directly).");
-    }
-  }
+
+  // ---- Perf logging / capture hotkeys ----
+  ImGui::SeparatorText("Perf logging & capture");
+  REXCVAR_SET(skate3_native_render_scene_perf_log,
+              CvarCheckbox("Per-frame perf log",
+                           REXCVAR_GET(skate3_native_render_scene_perf_log),
+                           "Emit per-frame render timing lines to the log "
+                           "every `perf_interval` frames"));
+  REXCVAR_SET(skate3_native_render_scene_perf_items,
+              CvarCheckbox("Per-item perf attribution",
+                           REXCVAR_GET(skate3_native_render_scene_perf_items),
+                           "Deep per-draw-item perf attribution in the log"));
+  REXCVAR_SET(skate3_native_render_capture_hotkeys,
+              CvarCheckbox("Snapshot hotkeys",
+                           REXCVAR_GET(skate3_native_render_capture_hotkeys),
+                           "Enable the hotkey-guided snapshot capture"));
+
+  ImGui::End();
 }
 
 void DrawDiagnosticsSection() {
@@ -1075,6 +1464,34 @@ void DrawDiagnosticsSection() {
           "offline against real data.");
     }
   }
+
+  ImGui::SeparatorText("Image / visual diagnostics");
+  REXCVAR_SET(skate3_native_render_scene_ssao_debug,
+              CvarCheckbox("SSAO debug view",
+                           REXCVAR_GET(skate3_native_render_scene_ssao_debug),
+                           "Visualize the raw SSAO term (diagnostic)"));
+  REXCVAR_SET(skate3_native_render_scene_2d_sharp,
+              CvarSlider("HUD 2D sharp-magnify",
+                         REXCVAR_GET(skate3_native_render_scene_2d_sharp),
+                         0.0f, 2.0f, "%.2f",
+                         "Sharper/magnified magnification for the 2D/HUD "
+                         "layer (1.0 = none)"));
+
+  ImGui::SeparatorText("Character shadow / lighting diagnostics");
+  REXCVAR_SET(skate3_native_render_scene_shadow_caster_parity,
+              CvarCheckbox("Shadow-caster parity",
+                           REXCVAR_GET(skate3_native_render_scene_shadow_caster_parity),
+                           "Per-piece shadow-caster parity (turn off to probe "
+                           "character shadow oddities)"));
+  REXCVAR_SET(skate3_native_render_scene_char_rows_inst,
+              CvarCheckbox("Per-instance char lighting",
+                           REXCVAR_GET(skate3_native_render_scene_char_rows_inst),
+                           "Per-instance character-lighting fallback"));
+  REXCVAR_SET(skate3_native_render_scene_caster_refresh_all,
+              CvarCheckbox("Caster palette refresh-all",
+                           REXCVAR_GET(skate3_native_render_scene_caster_refresh_all),
+                           "Palette-refresh coverage for character shadow "
+                           "casters"));
 }
 
 void DrawCachesSection() {
@@ -1144,6 +1561,38 @@ void NativeDebugDialog::Toggle() {
   }
 }
 
+void PerformanceDialog::Show() {
+  visible_ = true;
+  SetDrawActive(true);
+}
+
+void PerformanceDialog::Hide() {
+  if (!visible_) {
+    return;
+  }
+  visible_ = false;
+  SetDrawActive(false);
+}
+
+void PerformanceDialog::Toggle() {
+  if (visible_) {
+    Hide();
+  } else {
+    Show();
+  }
+}
+
+void PerformanceDialog::OnDraw(ImGuiIO& io) {
+  (void)io;
+  if (!visible_) {
+    return;
+  }
+  DrawPerformanceWindow(&visible_, imgui_drawer()->presenter());
+  if (!visible_) {
+    Hide();
+  }
+}
+
 void NativeDebugDialog::OnDraw(ImGuiIO& io) {
   (void)io;
   if (!visible_) {
@@ -1179,7 +1628,6 @@ void NativeDebugDialog::OnDraw(ImGuiIO& io) {
                            "Skip emulated GPU work for framebuffer-sized passes while "
                            "native output is active (perf). Small-surface passes "
                            "(lightmap page composition) always run."));
-
   if (ImGui::CollapsingHeader("Showcase & capture",
                               ImGuiTreeNodeFlags_DefaultOpen)) {
     DrawShowcaseCaptureSection();
@@ -1191,6 +1639,9 @@ void NativeDebugDialog::OnDraw(ImGuiIO& io) {
   if (ImGui::CollapsingHeader("Lighting & post")) {
     DrawLightingPostSection();
   }
+  if (ImGui::CollapsingHeader("Weather")) {
+    DrawWeatherSection();
+  }
   if (ImGui::CollapsingHeader("Shadows")) {
     DrawShadowsSection();
   }
@@ -1199,9 +1650,6 @@ void NativeDebugDialog::OnDraw(ImGuiIO& io) {
   }
   if (ImGui::CollapsingHeader("Scene content & overlays")) {
     DrawSceneContentSection();
-  }
-  if (ImGui::CollapsingHeader("Smoothness & pacing")) {
-    DrawPacingSection();
   }
   if (ImGui::CollapsingHeader("Diagnostics")) {
     DrawDiagnosticsSection();

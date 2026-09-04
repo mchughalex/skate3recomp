@@ -1919,16 +1919,11 @@ bool EnsureMenuBlurStandalone(const NativeGuestOutputRenderContext& context) {
   if (g_r.menu_blur_tex[0] == nullptr) {
     return false;
   }
-  if (g_r.rtv_resource != context.guest_output) {
-    if (g_r.output_srv_slot) {
-      context.device->DestroyDeferred(g_r.output_srv_slot);
-      g_r.output_srv_slot = nullptr;
-    }
-    nrhi::TextureViewDesc vd;
-    vd.mip_levels = 1;
-    g_r.output_srv_slot = context.device->CreateTextureView(context.guest_output, vd);
-    g_r.output_srv_allocated = g_r.output_srv_slot != nullptr;
-    g_r.rtv_resource = context.guest_output;
+  // Sampled view of the output, backed by the per-mailbox-image cache (the
+  // presenter rotates its guest-output image every refresh; the cached view
+  // is reused on rotation instead of being recreated per frame).
+  if (EnsureOutputSrvView(context) == nullptr) {
+    return false;
   }
   return g_r.output_srv_slot != nullptr;
 }

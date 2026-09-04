@@ -5,6 +5,7 @@
 // skate3_native_scene_state.h.
 
 #include "skate3_native_scene.h"
+#include "skate3_freecam_input.h"
 
 #include "generated/skate3_init.h"
 
@@ -282,6 +283,15 @@ REXCVAR_DEFINE_DOUBLE(skate3_native_render_scene_sun_elevation, 35.0, "Skate 3",
                       "values = long shadows and the most visible shafts).")
     .range(2.0, 88.0)
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
+REXCVAR_DEFINE_DOUBLE(skate3_native_render_scene_sun_brightness, 1.0, "Skate 3",
+                      "Sun/scene brightness multiplier (linear, applied to the "
+                      "per-path exposure constants every frame: world shadow_rows[40], "
+                      "dynamicobject dynobj_rows[3], sky sky_sun[4]/[5], and each "
+                      "character's key/ambient/SH rows). 1.0 = captured look; <1.0 "
+                      "dims toward night. Works standalone (no sun-override needed) "
+                      "and is baked into the Night preset.")
+    .range(0.0, 5.0)
+    .lifecycle(rex::cvar::Lifecycle::kHotReload);
 REXCVAR_DEFINE_BOOL(skate3_native_render_scene_haze, true, "Skate 3",
                     "Directional atmospheric haze: sun-scattered light added with "
                     "view distance, strongest looking toward the sun, tinted by the "
@@ -346,12 +356,13 @@ REXCVAR_DEFINE_DOUBLE(skate3_native_render_scene_showcase_wipe, 3.0, "Skate 3",
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
 REXCVAR_DEFINE_BOOL(skate3_native_render_scene_freecam, false, "Skate 3",
                     "Detach the render camera from the game (drone / free-fly "
-                    "cam): WASD fly, E/Space up, Q/C down, arrow keys or "
-                    "right-mouse drag look, Z/X zoom, Shift fast, Ctrl slow. "
-                    "The game keeps simulating, but its main render camera is "
-                    "taken over (ViewCamera::SetViewMatrix override), so the "
-                    "game culls and submits the world around the flown pose "
-                    "itself. Also on the End key (bind_skate3_freecam).")
+                    "cam, AZERTY): Z/S forward-back, Q/D strafe, E/Space up, "
+                    "C down, arrow keys or right-mouse drag look, Z/X zoom, "
+                    "Shift fast, Ctrl slow. The game keeps simulating, but its "
+                    "main render camera is taken over (ViewCamera::SetViewMatrix "
+                    "override), so the game culls and submits the world around "
+                    "the flown pose itself. Also on the F7 key "
+                    "(bind_skate3_freecam).")
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
 REXCVAR_DEFINE_DOUBLE(skate3_native_render_scene_freecam_speed, 8.0, "Skate 3",
                       "Freecam base fly speed in world units (meters) per "
@@ -786,8 +797,10 @@ REXCVAR_DEFINE_INT32(skate3_native_render_scene_refl_mode, 0, "Skate 3",
                      "Reflective glass debug: 0 normal, 1 cube term off, 2 cube at "
                      "the absolute LOD in refl_lod, 3 flat normal (no normal-map "
                      "perturb), 4 visualize the cube sample only, 5 body only (no "
-                     "spec, no cube), 6 normal-map LOD bias from the slider.")
-    .range(0, 6)
+                     "spec, no cube), 6 normal-map LOD bias from the slider, "
+                     "7 visualize lightmap sample, 8 visualize lightmap UV "
+                     "(frac x16), 9 lightmap resolve status (blue = missing).")
+    .range(0, 9)
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
 REXCVAR_DEFINE_DOUBLE(skate3_native_render_scene_refl_lod, 0.0, "Skate 3",
                       "Reflective glass debug: mode 2 = absolute cube mip level; "
@@ -852,6 +865,21 @@ REXCVAR_DEFINE_BOOL(skate3_native_render_scene_entity_fade, true, "Skate 3",
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
 REXCVAR_DEFINE_BOOL(skate3_native_render_scene_dynamic_items, true, "Skate 3",
                     "Publish dynamic entities (characters, props, cloth)")
+    .lifecycle(rex::cvar::Lifecycle::kHotReload);
+REXCVAR_DEFINE_BOOL(skate3_native_render_scene_nude, false, "Skate 3",
+                    "Nude mode: suppress garment draws (player tees, NPC jackets, "
+                    "hair_ropa) so skaters render in just their skin/body layer. "
+                    "Garments are the character.*_ropa cloth-sim variants plus plain "
+                    "character.cloth/leather/jacket pieces (DrawItem::garment); "
+                    "skin/face/accessories stay.")
+    .lifecycle(rex::cvar::Lifecycle::kHotReload);
+REXCVAR_DEFINE_DOUBLE(
+    skate3_native_render_scene_character_size, 1.0, "Skate 3",
+    "Uniform scale multiplier for skater/NPC characters (char_family 1/2): "
+    "1.0 = normal, 2.0 = double size. Scales the world matrix 3x3 linear "
+    "rows; feet stay near their original position (model-origin-relative "
+    "scale). Affects all skinned character items including garments and hair.")
+    .range(0.1, 5.0)
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
 REXCVAR_DEFINE_BOOL(
     skate3_native_render_scene_lw_fade, true, "Skate 3",
@@ -1007,11 +1035,13 @@ REXCVAR_DEFINE_BOOL(skate3_native_render_scene_tex_revalidate, true, "Skate 3",
                     "Re-fingerprint cached texture payloads every 16 frames and "
                     "re-decode on change (heals late-composed lightmap pages)")
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
-REXCVAR_DEFINE_BOOL(skate3_native_render_scene_stretch_guard, true, "Skate 3",
+REXCVAR_DEFINE_BOOL(skate3_native_render_scene_stretch_guard, false, "Skate 3",
                     "Draw-time stretch veto: skin cached sample verts of each "
                     "skinned mesh's GPU-resident decode with the final palette "
                     "every frame; wider than bind size = the 1-frame mangled-"
-                    "ribbon flash; skip the item's draws (blink)")
+                    "ribbon flash; skip the item's draws (blink). OFF by "
+                    "default in release to avoid the per-frame CPU cost; "
+                    "re-enable via F12 if a mangled-ribbon artifact is seen.")
     .lifecycle(rex::cvar::Lifecycle::kHotReload);
 REXCVAR_DEFINE_BOOL(skate3_native_render_scene_stretch_guard_dump, false, "Skate 3",
                     "On a stretch veto, dump the full bone palette and probe "
@@ -1976,6 +2006,9 @@ bool BuildItemFromMesh(uint8_t* base, uint32_t mesh, DrawItem& item) {
     g_rej_chain.fetch_add(1, std::memory_order_relaxed);
     return false;
   }
+  // Pre-size the island draw list: both cold consumers (BuildItemGeometry's
+  // ctx draw list, the gpu prewarm's single-drop entry) push into draws.
+  item.draws.reserve(32);
 
   // Vertex descriptor: find the stream-0 position element and the first
   // stream-0 texcoord (D3DDECLUSAGE 5) for the diffuse map. Read via ONE
@@ -2127,6 +2160,7 @@ bool BuildItemFromMesh(uint8_t* base, uint32_t mesh, DrawItem& item) {
   item.char_family = 0;
   item.hair_alpha_tex = 0;
   item.ropa = false;
+  item.garment = false;
   item.decal = false;
   item.decal_tileable = false;
   item.transparent = false;
@@ -2264,6 +2298,30 @@ bool BuildItemFromMesh(uint8_t* base, uint32_t mesh, DrawItem& item) {
                   std::memcmp(mat_name + len - 5, "_ropa", 5) == 0) {
                 item.ropa = true;
                 mat_name[len - 5] = '\0';
+              }
+            }
+            // Nude mode also hides plain cloth/leather/jacket garments whose
+            // material lacks the "_ropa" cloth-sim suffix (some skater tees are
+            // authored as plain character.cloth). Only cloth-family names are
+            // flagged so skin/face/accessory pieces (also char_family 2) stay.
+            {
+              // Hair is NOT clothing and must survive nude mode, even when it
+              // is authored as _ropa (character.hair_ropa / default_hair_ropa;
+              // the _ropa suffix was stripped above) or as plain cloth-family.
+              // Match both character.hair and character.default_hair prefixes.
+              const char* sub = mat_name + 10;
+              const bool is_hair =
+                  std::memcmp(mat_name, "character.", 10) == 0 &&
+                  (std::memcmp(sub, "hair", 5) == 0 ||
+                   std::memcmp(sub, "default_hair", 13) == 0);
+              item.garment = item.ropa && !is_hair;
+              if (!item.garment && !is_hair &&
+                  std::memcmp(mat_name, "character.", 10) == 0) {
+                const bool cloth = std::memcmp(sub, "cloth", 5) == 0;
+                const bool dcloth = std::memcmp(sub, "default_cloth", 13) == 0;
+                const bool leather = std::memcmp(sub, "leather", 7) == 0;
+                const bool jacket = std::memcmp(sub, "jacket", 6) == 0;
+                item.garment = cloth || dcloth || leather || jacket;
               }
             }
             item.hair = std::memcmp(mat_name, "character.hair", 15) == 0;
@@ -3856,12 +3914,64 @@ int ScoreRigidAffine(uint8_t* base, uint32_t bank, uint32_t m, const DrawItem& i
 // ribbon flash. 32 evenly-spaced samples cover the islands the 6-vert
 // gates miss. Returns the measured spread via out_spread for the
 // diagnosis log.
+namespace {
+// Per-frame memo for the same item judged more than once in a frame (a mesh
+// cloned/duplicated across instances with an identical pose + layout reads
+// the SAME skin samples): skip the guest re-read for an identical verdict.
+// The verdict depends only on these inputs (all that gates skin sampling
+// plus the bone content driving the spread), and the table is cleared each
+// frame so a CPU-rewritten VB or new pose is always re-judged.
+struct PalSaneKey {
+  uint32_t vb_addr, vb_bytes, stride;
+  uint16_t bw_offset, bi_offset, pos_offset;
+  uint8_t pos_fmt;
+  size_t bone_n;
+  uint64_t bone_hash;
+  bool operator==(const PalSaneKey&) const = default;
+};
+struct PalSaneKeyHash {
+  size_t operator()(const PalSaneKey& k) const noexcept {
+    size_t h = 14695981039346656037ull;
+    const auto mix = [&](uint64_t v) { h ^= v; h *= 1099511628211ull; };
+    mix(k.vb_addr); mix(k.vb_bytes); mix(k.stride); mix(k.bw_offset);
+    mix(k.bi_offset); mix(k.pos_offset); mix(k.pos_fmt);
+    mix(uint64_t(k.bone_n)); mix(k.bone_hash);
+    return h;
+  }
+};
+struct PalSaneMemo {
+  bool sane;
+  float spread;
+};
+static thread_local std::unordered_map<PalSaneKey, PalSaneMemo, PalSaneKeyHash>
+    s_pal_sane_memo;
+static thread_local uint64_t s_pal_sane_frame = ~0ull;
+}  // namespace
 bool PublishedPaletteSane(uint8_t* base, const DrawItem& item,
                           float* out_spread) {
   *out_spread = 0.0f;
   if (item.stride == 0 || item.bones.size() < 12 || item.bw_offset == 0 ||
       item.bi_offset == 0 || item.vb_addr == 0) {
     return true;
+  }
+  if (s_pal_sane_frame != g_guest_frame) {
+    s_pal_sane_memo.clear();
+    s_pal_sane_frame = g_guest_frame;
+  }
+  const size_t bone_n = item.bones.size();
+  uint64_t bone_hash = 14695981039346656037ull;
+  for (const float f : item.bones) {
+    uint32_t u;
+    std::memcpy(&u, &f, sizeof(u));
+    bone_hash ^= u;
+    bone_hash *= 1099511628211ull;
+  }
+  PalSaneKey key{item.vb_addr, item.vb_bytes, item.stride, item.bw_offset,
+                 item.bi_offset, item.pos_offset, item.pos_fmt, bone_n,
+                 bone_hash};
+  if (const auto fit = s_pal_sane_memo.find(key); fit != s_pal_sane_memo.end()) {
+    *out_spread = fit->second.spread;
+    return fit->second.sane;
   }
   const float bind_diag = BindDiag(item);
   // 6x, NOT the capture gates' 3x: this judges already-ACCEPTED palettes,
@@ -3873,15 +3983,19 @@ bool PublishedPaletteSane(uint8_t* base, const DrawItem& item,
   constexpr uint32_t kSamples = 32;
   SkinSampleVert sverts[kSamples];
   if (!ReadSkinSamplesGuest(base, item, kSamples, sverts)) {
-    return true;  // unsupported position format: nothing to judge
+    s_pal_sane_memo[key] = {true, 0.0f};  // unsupported format: nothing to judge
+    return true;
   }
   float spread = 0.0f;
   if (SkinnedSpreadHostRows(sverts, kSamples, item.bones.data(), item.bones.size(),
                             /*min_n=*/4, /*garbage_fails=*/false, &spread) != 1) {
-    return true;  // nothing to judge
+    s_pal_sane_memo[key] = {true, 0.0f};  // nothing to judge
+    return true;
   }
+  const bool sane = spread <= max_spread;
+  s_pal_sane_memo[key] = {sane, spread};
   *out_spread = spread;
-  return spread <= max_spread;
+  return sane;
 }
 
 // Returns false when the bank could not be consumed for this item (ropa
@@ -4107,7 +4221,8 @@ bool CaptureSkinnedState(uint8_t* base, uint32_t bank, uint32_t palette_base,
       return false;
     }
   }
-  constexpr uint32_t kPaletteFloats = 84 * 12;  // c4..c255 = up to 84 bones
+  const uint32_t kPaletteFloats =
+      std::min(84u, (256u - palette_base) / 4u) * 12u;  // cap to bank end
   item.bones.resize(kPaletteFloats);
   for (uint32_t i = 0; i < kPaletteFloats; ++i) {
     const float f = LoadGuestF32(base, bank + (palette_base * 4 + i) * 4);
@@ -4339,6 +4454,13 @@ uint32_t CaptureDynamicState(uint8_t* base, uint32_t ctx, bool world_path,
   item.shadow_caster =
       ortho_submit || (ctx != 0 && g_frame_ortho_ctx.count(ctx) != 0);
   item.dyn_entity = true;
+  // Nude mode: drop Ropa cloth-sim garments (player tees / NPC jackets /
+  // hair_ropa) entirely at publish so the skater renders as just their skin/
+  // body layer. The garment class is exactly the character.*_ropa material
+  // variant (DrawItem::ropa); non-ropa character items (skin/face/hair) stay.
+  if (item.garment && REXCVAR_GET(skate3_native_render_scene_nude)) {
+    return 0;
+  }
   g_frame_dynitems.push_back(std::move(item));
   const size_t index = g_frame_dynitems.size() - 1;
   if (g_frame_dynitems[index].pending ||
@@ -4365,7 +4487,8 @@ uint32_t CaptureClothDraw(uint8_t* base, uint32_t r4, uint32_t r5, uint32_t r6,
   (void)r4;
   (void)r7;
   if (!SceneEnabled() || r6 != 0x80000000u ||
-      !REXCVAR_GET(skate3_native_render_scene_quadlists)) {
+      !REXCVAR_GET(skate3_native_render_scene_quadlists) ||
+      REXCVAR_GET(skate3_native_render_scene_nude)) {
     return 0;
   }
   // Quad-list draw: stream 0 is a dynamic ping-pong object whose vertex
@@ -6221,9 +6344,9 @@ bool UpdateFreecam(FrameScene& scene, const float cam_view[16], double now) {
 #endif
     fc.engaged = true;
     REXLOG_INFO(
-        "native-scene freecam: ENGAGED at ({:.1f}, {:.1f}, {:.1f}); WASD fly, "
-        "E/Space up, Q/C down, arrows/right-drag look, Z/X zoom, Shift fast, "
-        "Ctrl slow",
+        "native-scene freecam: ENGAGED at ({:.1f}, {:.1f}, {:.1f}); AZERTY ZQSD fly "
+        "(Z/S forward-back, Q/D strafe), E/Space up, C down, arrows/right-drag look, "
+        "Z/X zoom, Shift fast, Ctrl slow",
         fc.pos[0], fc.pos[1], fc.pos[2]);
   }
   const double dt = std::clamp(now - fc.last_t, 0.0, 0.1);
@@ -6235,10 +6358,12 @@ bool UpdateFreecam(FrameScene& scene, const float cam_view[16], double now) {
   double speed_mult = 1.0, zoom_dir = 0.0;
 #if defined(_WIN32)
   const auto down = [](int vk) { return (GetAsyncKeyState(vk) & 0x8000) != 0; };
-  mv_f = (down('W') ? 1.0 : 0.0) - (down('S') ? 1.0 : 0.0);
-  mv_r = (down('D') ? 1.0 : 0.0) - (down('A') ? 1.0 : 0.0);
+  // AZERTY fly layout: Z = forward, S = back, Q = strafe left, D = strafe right;
+  // up = E or Space, down = C (Q is now strafe-left, not down).
+  mv_f = (down('Z') ? 1.0 : 0.0) - (down('S') ? 1.0 : 0.0);
+  mv_r = (down('D') ? 1.0 : 0.0) - (down('Q') ? 1.0 : 0.0);
   mv_u = ((down('E') || down(VK_SPACE)) ? 1.0 : 0.0) -
-         ((down('Q') || down('C')) ? 1.0 : 0.0);
+         (down('C') ? 1.0 : 0.0);
   lk_yaw = (down(VK_RIGHT) ? 1.0 : 0.0) - (down(VK_LEFT) ? 1.0 : 0.0);
   lk_pitch = (down(VK_UP) ? 1.0 : 0.0) - (down(VK_DOWN) ? 1.0 : 0.0);
   zoom_dir = (down('Z') ? 1.0 : 0.0) - (down('X') ? 1.0 : 0.0);
@@ -6261,6 +6386,36 @@ bool UpdateFreecam(FrameScene& scene, const float cam_view[16], double now) {
   } else {
     fc.mouse_anchored = false;
   }
+#else
+  // Cross-platform host input capture (see skate3_freecam_input.h). The raw
+  // GetAsyncKeyState path only exists on Windows; every other platform sources
+  // continuous key state + right-drag mouse deltas from the app's window event
+  // mirror, captured on the UI thread and drained here on the guest thread.
+  // VirtualKey values are identical to the Win32 VK_* codes above.
+  using rex::ui::VirtualKey;
+  const auto down = [](VirtualKey vk) { return freecam_input::IsKeyDown(vk); };
+  // AZERTY fly layout: Z = forward, S = back, Q = strafe left, D = strafe right;
+  // up = E or Space, down = C (Q is now strafe-left, not down).
+  mv_f = (down(VirtualKey::kZ) ? 1.0 : 0.0) - (down(VirtualKey::kS) ? 1.0 : 0.0);
+  mv_r = (down(VirtualKey::kD) ? 1.0 : 0.0) - (down(VirtualKey::kQ) ? 1.0 : 0.0);
+  mv_u = ((down(VirtualKey::kE) || down(VirtualKey::kSpace)) ? 1.0 : 0.0) -
+         (down(VirtualKey::kC) ? 1.0 : 0.0);
+  lk_yaw = (down(VirtualKey::kRight) ? 1.0 : 0.0) -
+           (down(VirtualKey::kLeft) ? 1.0 : 0.0);
+  lk_pitch = (down(VirtualKey::kUp) ? 1.0 : 0.0) -
+             (down(VirtualKey::kDown) ? 1.0 : 0.0);
+  zoom_dir = (down(VirtualKey::kZ) ? 1.0 : 0.0) -
+             (down(VirtualKey::kX) ? 1.0 : 0.0);
+  if (down(VirtualKey::kShift)) {
+    speed_mult = 4.0;
+  } else if (down(VirtualKey::kControl)) {
+    speed_mult = 0.2;
+  }
+  int32_t mdx = 0, mdy = 0;
+  freecam_input::DrainMouseDelta(mdx, mdy);
+  constexpr double kRadPerPixel = 0.0022;  // ~0.13 deg per pixel
+  mouse_yaw = mdx * kRadPerPixel;
+  mouse_pitch = -mdy * kRadPerPixel;
 #endif
 
   // Look: arrow keys drive a smoothed angular velocity (cinematic ease-in/
@@ -6639,9 +6794,9 @@ void InterpolateDynamicItems(uint8_t* base, FrameScene& scene, double now) {
   // pushes the play clock ~(W/2 + period) back AND the entity boxcar
   // (below) reaches another W/2 past that (~55 ms total at the default
   // 50 ms window). With ingests spaced at least kMinDynIngestSpacing apart,
-  // 24 slots guarantee >= ~80 ms of coverage at ANY render rate. The shared
-  // g_smooth_play keeps entities in phase with the camera.
-  constexpr int kRing = 24;
+  // 32 slots guarantee >= ~110 ms of coverage at ANY render rate. The
+  // shared g_smooth_play keeps entities in phase with the camera.
+  constexpr int kRing = 32;
   struct DynPose {
     double t = 0.0;
     std::vector<float> b;  // bone palette (skinned), raw captured rows
@@ -7274,10 +7429,15 @@ void InterpolateDynamicItems(uint8_t* base, FrameScene& scene, double now) {
     // render-rate pose alternation reads as skater judder/ghosting against
     // the smooth background. Averaging bone affines componentwise over the
     // window slightly shrinks fast-swinging limb rotations (a subtle motion
-    // blur), the trade the game's own 60 Hz presentation makes anyway.
-    const double filter_w = std::clamp(
+    // blur), the trade the game's own 60 Hz presentation makes anyway. The
+    // window adapts to the entity's OWN pose-change period: slow-ticking
+    // park characters (~30 Hz class) get a window spanning ~3 of their own
+    // steps; 60 Hz entities keep the camera-base window unchanged.
+    const double base_w = std::clamp(
         REXCVAR_GET(skate3_native_render_scene_smooth_camera_filter_ms), 0.0, 200.0) *
         1e-3;
+    const double filter_w =
+        std::clamp(base_w + (h.period > 0.0 ? h.period * 2.0 : 0.0), 0.0, 0.20);
     // Per-entity playback point. Entities whose own pose stream is SLOWER
     // than the 60 Hz character cadence (traffic vehicles tick on their own
     // sim rate) pin the shared playback clock past their newest sample;
@@ -8227,31 +8387,79 @@ static void RebasisShadowRows(FrameScene& scene, const float sun[3],
 // Baked lightmap shade and the sky dome's painted sun are game content and
 // stay put.
 static void ApplySunOverride(FrameScene& scene) {
-  if (!REXCVAR_GET(skate3_native_render_scene_sun_override)) {
-    return;
+  // Direction override (skate3_native_render_scene_sun_override): rotates every
+  // captured per-frame light transform to the azimuth/elevation direction.
+  if (REXCVAR_GET(skate3_native_render_scene_sun_override)) {
+    const float kDeg = 0.01745329252f;
+    const float az = float(REXCVAR_GET(skate3_native_render_scene_sun_azimuth)) * kDeg;
+    const float el =
+        float(REXCVAR_GET(skate3_native_render_scene_sun_elevation)) * kDeg;
+    // Unit vector TOWARD the sun (y up; azimuth 0 = +Z, 90 = +X).
+    const float sun[3] = {std::cos(el) * std::sin(az), std::sin(el),
+                          std::cos(el) * std::cos(az)};
+    RebasisShadowRows(scene, sun, /*include_ws=*/true);
+    if (scene.shadow_valid) {
+      scene.shadow_rows[24] = sun[0];  // c6 sun direction
+      scene.shadow_rows[25] = sun[1];
+      scene.shadow_rows[26] = sun[2];
+    }
+    if (scene.dynobj_valid) {
+      scene.dynobj_rows[0] = sun[0];
+      scene.dynobj_rows[1] = sun[1];
+      scene.dynobj_rows[2] = sun[2];
+    }
+    if (scene.sky_sun_valid) {
+      scene.sky_sun[0] = sun[0];
+      scene.sky_sun[1] = sun[1];
+      scene.sky_sun[2] = sun[2];
+    }
   }
-  const float kDeg = 0.01745329252f;
-  const float az = float(REXCVAR_GET(skate3_native_render_scene_sun_azimuth)) * kDeg;
-  const float el =
-      float(REXCVAR_GET(skate3_native_render_scene_sun_elevation)) * kDeg;
-  // Unit vector TOWARD the sun (y up; azimuth 0 = +Z, 90 = +X).
-  const float sun[3] = {std::cos(el) * std::sin(az), std::sin(el),
-                        std::cos(el) * std::cos(az)};
-  RebasisShadowRows(scene, sun, /*include_ws=*/true);
-  if (scene.shadow_valid) {
-    scene.shadow_rows[24] = sun[0];  // c6 sun direction
-    scene.shadow_rows[25] = sun[1];
-    scene.shadow_rows[26] = sun[2];
-  }
-  if (scene.dynobj_valid) {
-    scene.dynobj_rows[0] = sun[0];
-    scene.dynobj_rows[1] = sun[1];
-    scene.dynobj_rows[2] = sun[2];
-  }
-  if (scene.sky_sun_valid) {
-    scene.sky_sun[0] = sun[0];
-    scene.sky_sun[1] = sun[1];
-    scene.sky_sun[2] = sun[2];
+
+  // Sun/scene brightness (skate3_native_render_scene_sun_brightness): always
+  // applied, independent of the direction override, so the manual slider works
+  // standalone (and the Night preset dims the scene). There is no scene-global
+  // brightness value; each path carries its own exposure/brightness constant,
+  // so scale them here, in the linear domain, before the GPU pass uploads the
+  // rows. Direction-only rows ([0..26], sky [0..2], shadow basis, dynobj dir,
+  // char light) are NEVER scaled. Runs after the direction rebasis so the
+  // rebasis (which only touches rows 0..23 + dynobj_ws) can't clobber the
+  // dimmed exposures.
+  const double br = REXCVAR_GET(skate3_native_render_scene_sun_brightness);
+  if (std::fabs(br - 1.0) > 1e-4) {
+    const float b = float(br);
+    // WORLD: sh_sun.w = world scene exposure (dims fog + baked lightmaps too).
+    if (scene.shadow_valid) {
+      scene.shadow_rows[40] *= b;
+    }
+    // DYNOBJ props: dyn_sun.w = prop exposure (ambient is folded inside the
+    // * dyn_sun.w chain, so scaling it dims the whole prop).
+    if (scene.dynobj_valid) {
+      scene.dynobj_rows[3] *= b;
+    }
+    // SKY: both sky_sun[4] (pre-tone) and [5] (exposure) multiply lin.
+    if (scene.sky_sun_valid) {
+      scene.sky_sun[4] *= b;
+      scene.sky_sun[5] *= b;
+    }
+    // CHARACTERS (CH cbuffer, char_rows 18xfloat4): scale key color + exposure +
+    // flat ambient + pre-scaled SH rows. Only items with a validated char block
+    // (char_rows[14*4+1] > 0 = family marker). Do NOT scale ch_amb.w [11] (the
+    // SH multiplier) as well, or the SH irradiance is doubled; scaling the SH
+    // rows alone is sufficient.
+    for (DrawItem& it : scene.items) {
+      if (it.char_rows[14 * 4 + 1] <= 0.0f) {
+        continue;  // no validated character lighting
+      }
+      float* d = it.char_rows;
+      d[4] *= b; d[5] *= b; d[6] *= b;  // ch_key.rgb (sun/key color)
+      d[7] *= b;                        // ch_key.w (exposure E)
+      d[8] *= b; d[9] *= b; d[10] *= b; // ch_amb.rgb (flat ambient)
+      for (int r = 0; r < 9; ++r) {     // ch_sh[9] pre-scaled SH irradiance
+        d[(3 + r) * 4 + 0] *= b;
+        d[(3 + r) * 4 + 1] *= b;
+        d[(3 + r) * 4 + 2] *= b;
+      }
+    }
   }
 }
 
@@ -8649,6 +8857,13 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
     }
     DrawItem item;
     if (BuildItemGeometry(base, r.a, item)) {
+      // Nude mode: drop Ropa cloth-sim garments regardless of which publish
+      // path they'd take (rigid fmt-57 garments reach the frame ONLY through
+      // the world sort lists, so the CaptureDynamicState guard alone was
+      // insufficient).
+      if (item.garment && REXCVAR_GET(skate3_native_render_scene_nude)) {
+        continue;
+      }
       if (item.skinned) {
         // Skinned meshes reached through the world sort lists (flags,
         // banners) have no captured palette, bind-pose garbage; skip.
@@ -8892,6 +9107,9 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
       if (dyn_slot.find(ctxk) != dyn_slot.end()) {
         continue;  // this instance published live
       }
+      if (item.garment && REXCVAR_GET(skate3_native_render_scene_nude)) {
+        continue;  // nude mode: never re-serve a garment's instance transform
+      }
       if (!ReadCtxInstanceWorld(base, ctxk, item.world)) {
         g_world_props.fetch_add(1, std::memory_order_relaxed);
         continue;  // no placement: dropping beats an origin ghost
@@ -8905,6 +9123,9 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
     // world AND palette together (mixing frames' interpretations is the
     // mangled-ribbon bug; see g_ropa_state_cache).
     for (const auto& [mesh, cand] : pending_ropa_by_mesh) {
+      if (REXCVAR_GET(skate3_native_render_scene_nude)) {
+        continue;  // nude mode: skip ropa rescues entirely
+      }
       if (pub_count.find(mesh) != pub_count.end()) {
         continue;  // a live copy published; nothing to rescue
       }
@@ -9161,6 +9382,11 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
         }
         continue;
       }
+      // Nude mode: don't cache garment copies as the gap-fill source, or a
+      // toggled-off frame could resurrect a dropped tee for the fill window.
+      if (item.garment && REXCVAR_GET(skate3_native_render_scene_nude)) {
+        continue;
+      }
       t.frame = s_pub_frame;
       t.item = item;
       if (gap >= 2 && gap <= 4) {
@@ -9183,6 +9409,9 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
         }
         const uint64_t gap = s_pub_frame - t.frame;
         if (gap <= 2) {
+          if (t.item.garment && REXCVAR_GET(skate3_native_render_scene_nude)) {
+            continue;  // nude mode: never gap-fill a garment
+          }
           // t.frame stays at the last REAL publish, so the fill self-limits
           // to two frames and the telemetry above still sees the true gap
           // when the stream resumes.
@@ -9330,7 +9559,8 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
       uint32_t mesh;
       float p[3];
     };
-    std::vector<LivePos> live;
+    static thread_local std::vector<LivePos> live;
+    live.clear();
     live.reserve(16);
     for (const DrawItem& it : scene.items) {
       if ((it.char_family != 6 && it.char_family != 7) || !it.skinned ||
@@ -10439,6 +10669,75 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
       if (it != s_ortho_last.end() &&
           s_ortho_frame - it->second <= kOrthoHoldFrames) {
         item.shadow_caster = true;
+      }
+    }
+  }
+  // Rigid-piece character-size pivot (see docs/agent-reports/
+  // rigid-pivot-fix.md): the renderer scales the skinned body's bone
+  // translations about bone 0 (the skeleton root), but rigid (non-skinned)
+  // char_family 1/2 pieces scale only their world 3x3 and leave the
+  // translation fixed, so accessories detach from the growing body at
+  // cs != 1.0. Link each rigid piece to a SAME-ENTITY skinned sibling's
+  // root via the presentation-entity store (the same entity linkage the
+  // garment char-rows bridge uses) and publish it as DrawItem::root_pos.
+  // Runs at the very end of the build, after every bone/world mutation
+  // (pose smoothing, rescues, retention re-appends), so the skinned source
+  // root is exactly what the renderer uploads to the bone ring. Pieces
+  // without a trusted same-entity root leave root_valid = false and the gpu
+  // pass keeps their translation unscaled (pre-fix behavior).
+  {
+    // Resolve each char ctx's owning entity once per frame (LookupCtx takes
+    // a lock; the char-item subsets are small, but a per-frame ctx flush
+    // keeps it constant regardless).
+    std::unordered_map<uint32_t, uint32_t> ctx_ent;
+    const auto ent_of = [&](uint32_t ctx) -> uint32_t {
+      if (ctx == 0) {
+        return 0;
+      }
+      const auto cit = ctx_ent.find(ctx);
+      if (cit != ctx_ent.end()) {
+        return cit->second;
+      }
+      uint32_t e = 0;
+      skate3::native_entity::CtxInfo info;
+      if (skate3::native_entity::LookupCtx(ctx, &info)) {
+        e = info.entity;
+      }
+      ctx_ent[ctx] = e;
+      return e;
+    };
+    const bool want_pivot = std::fabs(REXCVAR_GET(
+        skate3_native_render_scene_character_size) - 1.0f) > 1e-6f;
+    if (want_pivot) {
+      // First pass: collect each entity's root from a skinned char sibling
+      // (bone 0 translation, the pivot the skinned scaling path uses).
+      std::unordered_map<uint32_t, std::array<float, 3>> ent_root;
+      for (const DrawItem& it : scene.items) {
+        if (it.char_family != 1 && it.char_family != 2) {
+          continue;
+        }
+        if (!it.skinned || it.bones.size() < 12) {
+          continue;
+        }
+        const uint32_t e = ent_of(it.ctx);
+        if (e == 0 || ent_root.find(e) != ent_root.end()) {
+          continue;
+        }
+        ent_root[e] = {it.bones[3], it.bones[7], it.bones[11]};
+      }
+      // Second pass: publish the root onto the frame's rigid char pieces.
+      for (DrawItem& it : scene.items) {
+        if ((it.char_family != 1 && it.char_family != 2) || it.skinned) {
+          continue;
+        }
+        const auto hit = ent_root.find(ent_of(it.ctx));
+        if (hit == ent_root.end()) {
+          continue;
+        }
+        it.root_pos[0] = hit->second[0];
+        it.root_pos[1] = hit->second[1];
+        it.root_pos[2] = hit->second[2];
+        it.root_valid = true;
       }
     }
   }

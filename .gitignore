@@ -35,3 +35,7 @@ CMakeUserPresets.json
 
 # Local developer scripts (texture decoding, extraction, bootstrap helpers)
 /scripts/
+/docs/agent-reports/
+# Python test artifacts
+tests/__pycache__/
+*.pyc

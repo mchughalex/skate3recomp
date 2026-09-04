@@ -11,6 +11,10 @@
 #include <cstdint>
 #include <vector>
 
+namespace rex::graphics::nrhi {
+class Device;
+}
+
 namespace skate3::native_scene {
 
 struct DrawEntry {
@@ -174,6 +178,13 @@ struct DrawItem {
   // Detected via the AttribulatorMaterialName channel; consumed by
   // CaptureSkinnedState.
   bool ropa;
+  // Garment-to-hide under nude mode. True when ropa is true (the
+  // character.*_ropa cloth-sim variant) OR the material is a plain cloth/
+  // leather/jacket character piece (character.cloth with no _ropa suffix —
+  // some skater garments are authored without the cloth-sim suffix, so the
+  // ropa-only check alone let the tee leak through nude mode). Deliberately
+  // does NOT cover skin/face (also char_family 2) so nude keeps the body.
+  bool garment;
   // character.alpha: translucent CAC accessory pieces (sunglass lenses).
   // cac_alphaPS outputs alpha = the mesh's "alpha" channel texture sampled
   // at the raw second texcoord x the entity alpha constant (ucode: oC0.w =
@@ -294,6 +305,18 @@ struct DrawItem {
   // GPU copies must be revalidated against this every frame.
   uint64_t fingerprint;
   float world[16];    // row-vector convention, translation in row 3
+  // Character-size pivot: the character's root-borne world position (the
+  // skinned path's bone 0 = the skeleton root), captured AFTER pose
+  // interpolation so it matches the palette the renderer uploads. Rigid
+  // (non-skinned) char_family 1/2 pieces scale their world.translation
+  // about this point so accessories (hats / jewellery / rigid ropa) track
+  // the scaled body: the skinned body scales every bone translation about
+  // root, so a rigid piece that keeps its world translation fixed detaches
+  // while the body grows. root_valid gates the scale: false = no trusted
+  // character root this frame, the translation stays unscaled (pre-fix
+  // behavior, never worse than before).
+  float root_pos[3] = {};
+  bool root_valid = false;
   float bbox_min[3];  // mesh-local bounds, for decode validation
   float bbox_max[3];
   std::vector<DrawEntry> draws;
@@ -688,6 +711,10 @@ void Install();
 // new state; refuses (returns false) when the skate3_native_render hook
 // layer was not enabled at boot.
 bool ToggleSceneEnabled();
+
+// Current native RHI device (null until the scene pipeline has built).
+// Used by the F12 diagnostics overlay to pull live per-frame perf/ledger data.
+rex::graphics::nrhi::Device* GetNativeSceneDevice();
 
 // True once the scene renderer has hit an unrecoverable pipeline/resource
 // failure and yields to the emulated output until re-enabled. Surfaced so
