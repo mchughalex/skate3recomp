@@ -3939,7 +3939,14 @@ bool CaptureSkinnedState(uint8_t* base, uint32_t bank, uint32_t palette_base,
           LoadGuestF32(base, bank + ((m + 2) * 4 + 2) * 4),
           LoadGuestF32(base, bank + ((m + 2) * 4 + 3) * 4));
     }
-    if (flag_x > 0.0f) {
+    // Sim-inactive is signalled by an EXACT 1.0 in the flag row's x (see
+    // below). While the sim is ACTIVE this register holds a rotation row of
+    // the garment's rigid world, whose x is positive for half the facing
+    // directions; a plain `> 0` test sent those frames down this branch,
+    // which refused them (the torso garment vanished or fell back to last
+    // frame's drape, lagging behind the moving skater).
+    const bool sim_inactive = std::fabs(flag_x - 1.0f) <= 1e-6f;
+    if (sim_inactive) {
       // Sim inactive: the palette sits one register late (c5/c8). The LAYOUT
       // is exact, but the BANK can still be foreign, the same stale-bank
       // hazard the rigid branch below scores against (the flag itself was
@@ -3954,8 +3961,8 @@ bool CaptureSkinnedState(uint8_t* base, uint32_t bank, uint32_t palette_base,
       // ropa state rescue). The game writes exactly 1.0 into the flag row's
       // x for sim-inactive (observed on every live capture, incl. the
       // (1,junk,junk,junk) NPC variant); a bit-exact 1.0 is the structural
-      // proof that unlocks the relaxed near-camera acceptance; any other
-      // positive x (a bone row of some other layout) keeps the strict gate.
+      // proof that unlocks the relaxed near-camera acceptance; any other x is
+      // an active sim's rotation row and takes the rigid branch below.
       palette_base = RefinePaletteBase(base, bank, main_pass ? 8u : 5u, item,
                                        /*structural_guess=*/flag_x == 1.0f);
       if (palette_base == 0) {
