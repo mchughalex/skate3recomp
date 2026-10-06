@@ -3,7 +3,9 @@
 /build/
 /generated/
 /generated.backup-*/
-/tools/
+/tools/*
+!/tools/generate_hom_spirv.py
+!/tools/generate_screen_fx_spirv.py
 
 # Local game dump and retail media. Users must provide their own copy.
 /game/

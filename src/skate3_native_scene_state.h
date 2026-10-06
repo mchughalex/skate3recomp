@@ -37,6 +37,12 @@ inline std::mutex g_scene_mutex;
 // vectors) every frame.
 inline std::shared_ptr<const FrameScene> g_scene;
 inline uint64_t g_generation = 0;
+// Final screen effects have their own publication lifetime. World scene
+// gaps (menus or retained replay frames) must still advance or clear the effect.
+inline std::mutex g_screen_fx_mutex;
+inline FrameScene::ScreenFx g_screen_fx;
+// Guest render thread only, consumed once at every frame boundary.
+inline FrameScene::ScreenFx g_frame_screen_fx;
 // Steady-clock stamp of the last scene publish (BuildFrameScene only
 // publishes when a perspective view submitted this frame). YieldForMenus
 // uses its freshness to tell the in-game pause menu (the world keeps

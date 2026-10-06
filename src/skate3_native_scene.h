@@ -11,6 +11,8 @@
 #include <cstdint>
 #include <vector>
 
+#include "native/screen_fx.h"
+
 namespace skate3::native_scene {
 
 struct DrawEntry {
@@ -115,6 +117,13 @@ struct DrawItem {
   // without it fall back to the legacy empirical character shading.
   uint8_t char_family = 0;
   float char_rows[72] = {};
+  // defaulthom_defaultPS: the Hall of Meat bones are an unlit overlay,
+  // with per-draw injury tint/fresnel and fog rather than CAC lighting.
+  // This is a draw-time shader classification; an ordinary body mesh
+  // never enters the overlay merely because its material is a character.
+  bool hall_of_meat = false;
+  // PS c1..c4 (material, bone color, color parameters), VS c5/c6 (fog).
+  float hom_rows[24] = {};
   // Hair strand coverage: the hair mesh's "alpha" channel texture, sampled
   // at the SECOND texcoord (raw float2); hair renders alpha-blended in the
   // sorted sub-pass (the opaque path is the blocky-helmet look).
@@ -437,6 +446,10 @@ struct FrameScene {
     uint32_t grain_fetch[6] = {};
   };
   PhotoFx photo_fx;
+  // Final lens/vignette draw, captured independently of the photo
+  // editor's complete chain. GetScreenFxSnapshot also publishes it during
+  // frames that retain the previous world scene.
+  using ScreenFx = ScreenFxState;
   std::vector<DrawItem> items;
   // MeshContexts the build-side occlusion skip left out of `items` this
   // frame (see skate3_native_render_scene_occlusion_cull_build): the
@@ -444,6 +457,10 @@ struct FrameScene {
   // keeps excluding them between their staggered rebuild frames.
   std::vector<uint32_t> occl_build_skipped;
 };
+
+// Current guest frame's final screen effect. Published even when the
+// world scene is held or absent; no matching draw publishes kNone.
+FrameScene::ScreenFx GetScreenFxSnapshot();
 
 // One frame submission record from the hook layer (see RenderMeshRecord).
 struct SubmitRecord {

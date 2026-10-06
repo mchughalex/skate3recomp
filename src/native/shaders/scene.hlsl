@@ -139,6 +139,19 @@ VSOut vs_main(float3 p : POSITION, float2 uv : TEXCOORD0, float2 uv2 : TEXCOORD1
                         : float4(mul(sb, (float3x3)world), bw.w);
   return o;
 }
+// HoM's VS computes distance fog per vertex. The otherwise-unused uv3
+// interpolator carries factor/transmittance to ps_hom, preserving the
+// guest interpolation across triangles (including distant ragdolls).
+VSOut vs_hom(float3 p : POSITION, float2 uv : TEXCOORD0, float2 uv2 : TEXCOORD1,
+             float4 bw : BLENDWEIGHT0, uint4 bi : BLENDINDICES0,
+             float3 nrm : NORMAL0, float2 uv3 : TEXCOORD2) {
+  VSOut o = vs_main(p, uv, uv2, bw, bi, nrm, uv3);
+  float fb = saturate(length(o.rpos) * misc.y + misc.z);
+  // Xenos D3D9 multiply-by-zero semantics make pow(0,0) equal one.
+  float f = misc.w == 0.0 ? 1.0 : pow(fb, misc.w);
+  o.uv3 = float2(f, 1.0 - f * mat_tint.w);
+  return o;
+}
 // ---- Graphics build-up showcase -------------------------------------------
 // sh_v2.yzw carry the showcase split state: y/z = the LAYER MASK shown
 // left/right of the vertical split at w (in output pixels), encoded as
@@ -729,6 +742,35 @@ float4 ShadePixel(VSOut i) {
     return float4(PassGamma(lit), albedo.a * albedo.a);
   }
   return float4(PassGamma(lit), 1.0);
+}
+// Hall of Meat (defaulthom_defaultPS): per-draw injury color/fresnel,
+// diffuse squared and the guest fog/tone chain. vs_hom preserves the
+// guest's raw UV, unnormalized skinned normal and fog interpolator.
+// b2 uses the otherwise-unused character block: ch_light/key = PS c1/c2,
+// ch_amb = i_boneClr (c3), ch_sh[0] = i_colorParams (c4),
+// ch_sh[1/2] = VS fog ramp/color (c5/c6). No sun, shadows or alpha test.
+float4 ps_hom(VSOut i) : SV_Target {
+  int mask = ShowcaseMask(i.pos.x);
+  if (mask >= 0 && ((mask & 512) == 0 || (mask & 1024) != 0)) {
+    clip(-1.0);
+  }
+  float3 d = diffuse.Sample(smp, i.uv).rgb;
+  d *= d;
+  float3 b = max(d, ch_sh[0].y) * ch_amb.rgb;
+  // Guest PS does not normalize the skinned normal; the VS supplies it.
+  float ndv = saturate(dot(normalize(-i.rpos), i.nrm));
+  float rim = ch_key.w == 0.0 ? 1.0 : pow(abs(1.0 - ndv), ch_key.w);
+  float3 k = d * (1.0 - rim) * ch_sh[0].x;
+  float3 lin = k * (d - b) + b;
+  float f = i.uv3.x;
+  float trans = i.uv3.y;
+  float3 xe = lin * (trans * ch_light.y) + f * ch_sh[2].rgb;
+  // Alpha receives the same tone function in the guest, with input
+  // 2*transmittance (0.790569 at zero fog); the postfx 1.41 fold is RGB only.
+  float ax = 2.0 * trans;
+  float at = saturate(1.0 - ax);
+  float a = sqrt(abs(0.5 * (max(ax * 0.25 + 0.75, 1.0) - at * at)));
+  return ToneOut(xe, a, false);
 }
 float4 ps_main(VSOut i) : SV_Target {
   int mask = ShowcaseMask(i.pos.x);

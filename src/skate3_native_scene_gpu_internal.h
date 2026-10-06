@@ -474,6 +474,7 @@ struct RendererState {
   nrhi::Pipeline* pso = nullptr;
   nrhi::Pipeline* pso_cullback = nullptr;  // two_sided_sheet meshes (see MeshBuffers)
   nrhi::Pipeline* pso_nodepth = nullptr;
+  nrhi::Pipeline* pso_hom = nullptr;
   // environment.transparent sub-pass: straight alpha blend, depth test on,
   // z-write OFF; items drawn back-to-front after all opaque items.
   nrhi::Pipeline* pso_transparent = nullptr;
@@ -491,6 +492,9 @@ struct RendererState {
   nrhi::Format rtv_format = nrhi::Format::kUnknown;
   nrhi::Texture* depth = nullptr;
   uint32_t depth_width = 0;
+  // HoM bones share the scene color, but test against an independently
+  // cleared depth plane so the body cannot obscure its injury overlay.
+  nrhi::Texture* hom_depth = nullptr;
   uint32_t depth_height = 0;
   // Cached guest-output texture identity (context.guest_output) for change
   // detection: the presenter recreates the output image on resize.
@@ -590,6 +594,20 @@ struct RendererState {
   uint32_t pfx_width = 0, pfx_height = 0;
   bool pfx_ready = false;
   bool pfx_failed = false;
+  // Final screen lens effect, independent of the photo-editor
+  // chain. Copy the finished output before sampling it to avoid RT/SRV
+  // feedback. The copy target idles in RENDER_TARGET state.
+  nrhi::BindingLayout* screen_fx_layout = nullptr;
+  nrhi::Pipeline* screen_fx_copy_pso = nullptr;
+  std::unordered_map<uint64_t, nrhi::Pipeline*> screen_fx_psos;
+  nrhi::Format screen_fx_format = nrhi::Format::kUnknown;
+  nrhi::Texture* screen_fx_input = nullptr;
+  nrhi::TextureView* screen_fx_input_srv = nullptr;
+  uint32_t screen_fx_width = 0, screen_fx_height = 0;
+  static constexpr uint32_t kScreenFxCbSlice = 4096;
+  static constexpr uint32_t kScreenFxCbRegions = 4;
+  nrhi::Buffer* screen_fx_cb = nullptr;
+  uint8_t* screen_fx_cb_ptr = nullptr;
   // Screen-space ambient occlusion (ssao.hlsl: GTAO over the resolved
   // scene; see ApplySsaoPass). Own binding layout: root constants b0 + two
   // single-texture tables t0/t1 + point/linear clamp samplers. Full-res

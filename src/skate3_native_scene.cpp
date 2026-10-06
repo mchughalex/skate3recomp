@@ -38,6 +38,7 @@
 
 #include "native/skate3_native_diag.h"
 #include "native/skate3_native_entity.h"
+#include "native/hall_of_meat.h"
 #include "native/skate3_native_guest_read.h"
 #include "native/skate3_native_lw.h"
 #include "native/skate3_native_palette.h"
@@ -1256,6 +1257,9 @@ uint32_t BSwap32(uint32_t v) {
 // fixup, never from the bank at submit-exit (a leftover identity matrix at
 // c4 validates as a plausible world and renders the prop at the origin).
 std::atomic<uint64_t> g_draw_seq{0};
+// Unlike generic character retention, an overlay must expire as soon as
+// the game stops issuing its draws (Hall of Meat toggled off).
+std::atomic<bool> g_frame_hom_seen{false};
 
 // Provenance of the last completed guest draw: (ib_obj << 32 | vb_obj) for
 // indexed 3D draws, 0 for everything else. The submit-exit capture may only
@@ -1281,7 +1285,12 @@ std::atomic<uint64_t> g_last_draw_ibvb{0};
 // mid-palette and scrambles every bone by two rows (the mangled player-shirt
 // bug). Returns the base register, or 0 when no location holds plausible
 // bone rows.
+bool ActiveHallOfMeatShader(uint8_t* base);
+
 uint32_t BankPaletteBase(uint8_t* base, uint32_t bank) {
+  // The HoM VS has a fixed c7 bone-array layout (c4 camera, c5/c6 fog).
+  // Pin the decoded shader's layout rather than scoring a possible +1 shift.
+  if (ActiveHallOfMeatShader(base)) return 7;
   const auto bone_at = [&](uint32_t reg) -> bool {
     for (int r = 0; r < 3; ++r) {
       float f[4];
@@ -2892,6 +2901,93 @@ struct PfxCapture {
 };
 PfxCapture g_pfx_cap[kPfxPassCount] = {};
 
+namespace {
+
+void CaptureScreenFxState(uint8_t* base) {
+  // F408 binds the actual VS (tracked as g_cur_ps_obj), F150 the PS.
+  // Their constructors copy metadata after 872/40-byte object headers;
+  // the VS path is at +0x394, not inside its mutable fetch table at +0x54.
+  // Re-read both typed metadata headers and paths on recycled objects.
+  char paths[2][160] = {};
+  const uint32_t objects[2] = {
+      g_cur_ps_obj.load(std::memory_order_relaxed),
+      g_cur_vs_obj.load(std::memory_order_relaxed)};
+  constexpr uint32_t path_offsets[2] = {
+      kScreenFxVsPathOffset, kScreenFxPsPathOffset};
+  uint32_t types[2] = {}, headers[2] = {};
+  const bool have_headers =
+      GuestTryLoadU32(base, objects[0], &types[0]) &&
+      GuestTryLoadU32(base, objects[0] + kScreenFxVsHeaderOffset, &headers[0]) &&
+      GuestTryLoadU32(base, objects[1], &types[1]) &&
+      GuestTryLoadU32(base, objects[1] + kScreenFxPsHeaderOffset, &headers[1]);
+  for (unsigned i = 0; i < 2; ++i) {
+    if (objects[i] >= 0x10000) {
+      if (!GuestTryCopy(paths[i], base + objects[i] + path_offsets[i],
+                        sizeof(paths[i]) - 1)) {
+        paths[i][0] = '\0';
+      }
+    }
+  }
+  const auto variant = ClassifyScreenFxPixelShader(paths[1]);
+  const auto vertex = ClassifyScreenFxVertexShader(paths[0]);
+  if (variant == ScreenFxVariant::kNone) return;
+  // A later matching draw with missing state must not inherit a previous
+  // draw's bindings or rows, even within this same guest frame.
+  g_frame_screen_fx = {};
+  if (!have_headers ||
+      !ScreenFxShaderObjectHeadersValid(types[0], headers[0],
+                                       types[1], headers[1]) ||
+      vertex == ScreenFxVertex::kNone) {
+    return;
+  }
+
+  const uint32_t ps = g_ps_bank.load(std::memory_order_relaxed);
+  const uint32_t vs = g_vs_bank.load(std::memory_order_relaxed);
+  const uint32_t dev = g_device.load(std::memory_order_relaxed);
+  if (ps < 0x10000 || dev < 0x10000) return;
+  FrameScene::ScreenFx capture;
+  capture.variant = variant;
+  capture.scaled_uv = vertex == ScreenFxVertex::kScaled;
+  uint32_t raw_ps[3][4], raw_vs[4][4] = {}, raw_fetch[3][6];
+  if (!GuestTryCopy(raw_ps, base + ps, sizeof(raw_ps)) ||
+      !GuestTryCopy(raw_fetch, base + dev + 0x480, sizeof(raw_fetch)) ||
+      !GuestTryCopy(capture.render_states, base + dev + 0x2934,
+                    sizeof(capture.render_states)) ||
+      !GuestTryCopy(&capture.color_mask, base + dev + 0x28DC,
+                    sizeof(capture.color_mask))) {
+    return;
+  }
+  const bool have_vs = vs >= 0x10000 &&
+      GuestTryCopy(raw_vs, base + vs, sizeof(raw_vs));
+  if (capture.scaled_uv && !have_vs) return;
+  for (unsigned r = 0; r < 3; ++r) {
+    for (unsigned lane = 0; lane < 4; ++lane) {
+      capture.ps[r][lane] = std::bit_cast<float>(BSwap32(raw_ps[r][lane]));
+    }
+  }
+  for (unsigned r = 0; r < 4; ++r) {
+    for (unsigned lane = 0; lane < 4; ++lane) {
+      capture.vs[r][lane] = std::bit_cast<float>(BSwap32(raw_vs[r][lane]));
+    }
+  }
+  for (unsigned r = 0; r < 3; ++r) {
+    for (unsigned word = 0; word < 6; ++word) {
+      capture.fetch[r][word] = BSwap32(raw_fetch[r][word]);
+    }
+  }
+  for (auto& value : capture.render_states) value = BSwap32(value);
+  capture.color_mask = BSwap32(capture.color_mask);
+  if (ScreenFxCaptureValid(capture)) {
+    g_frame_screen_fx = capture;
+  }
+}
+}  // namespace
+
+FrameScene::ScreenFx GetScreenFxSnapshot() {
+  std::lock_guard<std::mutex> lock(g_screen_fx_mutex);
+  return g_screen_fx;
+}
+
 
 void OnPhotoGrabRequest() {
   g_photo_grab_request_ns.store(
@@ -3437,7 +3533,56 @@ void CaptureHairTint(uint8_t* base, DrawItem& item) {
 // rim spec c8, rim c11, fresnel powers c6.w/c5.z; cacstamp: c16/c17/c20,
 // c15.w/c14.z [+ the editor row shift]) exist on fams 1/2 only; [15].w
 // stays 0 when they fail their range gates and the PS terms vanish.
+namespace {
+bool ActiveHallOfMeatShader(uint8_t* base) {
+  const auto is_hom = [&](uint32_t obj) {
+    if (obj < 0x10000) return false;
+    char path[160] = {};
+    if (!GuestTryCopy(path, base + obj + 0x54, sizeof(path) - 1)) return false;
+    // Shader objects may be recycled during streaming; a pointer-only
+    // positive/negative cache would misclassify a reused object.
+    return IsHallOfMeatPixelShader(path);
+  };
+  return is_hom(g_cur_ps_obj.load(std::memory_order_relaxed)) ||
+         is_hom(g_cur_vs_obj.load(std::memory_order_relaxed));
+}
+}  // namespace
+
+bool CaptureHallOfMeatState(uint8_t* base, DrawItem& item) {
+  if (!ActiveHallOfMeatShader(base)) return false;
+  const uint32_t ps = g_ps_bank.load(std::memory_order_relaxed);
+  const uint32_t vs = g_vs_bank.load(std::memory_order_relaxed);
+  if (ps == 0 || vs == 0) return false;
+  uint32_t raw[24];
+  if (!GuestTryCopy(raw, base + ps + 16, 16 * sizeof(uint32_t)) ||
+      !GuestTryCopy(raw + 16, base + vs + 5 * 16, 8 * sizeof(uint32_t))) {
+    return false;
+  }
+  float rows[24];
+  for (unsigned i = 0; i < 24; ++i) {
+    rows[i] = std::bit_cast<float>(BSwap32(raw[i]));
+  }
+  if (!HallOfMeatRowsValid(rows)) return false;
+  const uint32_t dev = g_device.load(std::memory_order_relaxed);
+  if (dev == 0) return false;
+  // The HoM shader samples tf3, not the CAC diffuse slot. Require its own
+  // binding before committing any HoM metadata, including runtime textures
+  // that have no material-channel object.
+  uint32_t fetch[6];
+  if (!GuestTryCopy(fetch, base + dev + 0x480 + 3 * 24, sizeof(fetch))) {
+    return false;
+  }
+  for (unsigned i = 0; i < 6; ++i) fetch[i] = BSwap32(fetch[i]);
+  if (!HallOfMeatFetchValid(fetch)) return false;
+  item.hall_of_meat = true;
+  item.char_family = 0;
+  std::memcpy(item.hom_rows, rows, sizeof(rows));
+  std::memcpy(item.diffuse_fetch, fetch, sizeof(fetch));
+  return true;
+}
+
 void CaptureCharLighting(uint8_t* base, DrawItem& item) {
+  if (CaptureHallOfMeatState(base, item)) return;
   if (item.char_family == 0) {
     return;
   }
@@ -3906,7 +4051,9 @@ bool CaptureSkinnedState(uint8_t* base, uint32_t bank, uint32_t palette_base,
     }
     return false;
   }
-  if (item.ropa && palette_base != 0) {
+  const bool hom_shader = ActiveHallOfMeatShader(base);
+  if (hom_shader) palette_base = 7;
+  if (!hom_shader && item.ropa && palette_base != 0) {
     const bool main_pass = palette_base >= 7;
     const uint32_t flag_reg = main_pass ? 7u : 4u;
     const float flag_x = LoadGuestF32(base, bank + (flag_reg * 4) * 4);
@@ -4098,7 +4245,7 @@ bool CaptureSkinnedState(uint8_t* base, uint32_t bank, uint32_t palette_base,
       g_ropa_stale.fetch_add(1, std::memory_order_relaxed);
       return false;
     }
-  } else {
+  } else if (!hom_shader) {
     palette_base = RefinePaletteBase(base, bank, palette_base, item);
     if (palette_base == 0) {
       // The bank's palette provably does not skin this mesh into the bank's
@@ -4108,8 +4255,11 @@ bool CaptureSkinnedState(uint8_t* base, uint32_t bank, uint32_t palette_base,
     }
   }
   constexpr uint32_t kPaletteFloats = 84 * 12;  // c4..c255 = up to 84 bones
-  item.bones.resize(kPaletteFloats);
-  for (uint32_t i = 0; i < kPaletteFloats; ++i) {
+  // The decoded HoM VS declares i_boneArray at c7 for 183 float4 rows:
+  // 61 bones. Later registers are unrelated parameters, not extra bones.
+  const uint32_t palette_floats = hom_shader ? 61u * 12u : kPaletteFloats;
+  item.bones.resize(palette_floats);
+  for (uint32_t i = 0; i < palette_floats; ++i) {
     const float f = LoadGuestF32(base, bank + (palette_base * 4 + i) * 4);
     item.bones[i] = (f > -1e7f && f < 1e7f) ? f : 0.0f;
   }
@@ -4325,6 +4475,9 @@ uint32_t CaptureDynamicState(uint8_t* base, uint32_t ctx, bool world_path,
       g_recorded_buffers.push_back(std::move(buf));
     }
   }
+  if (!item.pending && !item.skinned && own_draw_last) {
+    CaptureHallOfMeatState(base, item);
+  }
   std::lock_guard<std::mutex> lock(g_palette_mutex);
   // Record shadow-pass submissions per ctx (even refused/pending captures):
   // the game's per-piece caster list = exactly the ctxs it submits through
@@ -4349,7 +4502,8 @@ uint32_t CaptureDynamicState(uint8_t* base, uint32_t ctx, bool world_path,
     // (see DrawItem::caster_bank, stale wheel spin in the shadow banks).
     const DrawItem& d = g_frame_dynitems[index];
     g_frame_pending_by_buffers.emplace((uint64_t(d.ib_obj) << 32) | d.vb_obj, index);
-  } else if (g_frame_dynitems[index].char_family != 0 &&
+  } else if ((g_frame_dynitems[index].char_family != 0 ||
+              g_frame_dynitems[index].hall_of_meat) &&
              g_frame_char_refresh.size() < 256) {
     // Character captured at submit-exit: the PS bank there can predate this
     // character's main pass; refresh the lighting rows on its later draws
@@ -4503,6 +4657,10 @@ void OnDrawDone(uint8_t* base, uint32_t func, uint32_t r4, uint32_t r5, uint32_t
                 uint32_t r7) {
   g_draw_seq.fetch_add(1, std::memory_order_relaxed);
   const uint32_t flags2d = Phase2dFlags();
+  if (flags2d == 0 && SceneEnabled()) CaptureScreenFxState(base);
+  if (func == 0 && flags2d == 0 && ActiveHallOfMeatShader(base)) {
+    g_frame_hom_seen.store(true, std::memory_order_relaxed);
+  }
   if (flags2d != 0) {
     g_draws_2d.fetch_add(1, std::memory_order_relaxed);
   }
@@ -5550,7 +5708,13 @@ void OnDrawDone(uint8_t* base, uint32_t func, uint32_t r4, uint32_t r5, uint32_t
         }
         if (!match) continue;
       }
-      CaptureCharLighting(base, d);
+      if (d.skinned && ActiveHallOfMeatShader(base)) {
+        // A generic pre-pass can publish first. Refresh the verified HoM
+        // draw's own c7/61-bone palette as well as its per-draw color.
+        CaptureSkinnedState(base, bank, 7, d);
+      } else {
+        CaptureCharLighting(base, d);
+      }
     }
   }
   auto range = g_frame_pending_by_buffers.equal_range(key);
@@ -5708,7 +5872,7 @@ void OnDrawDone(uint8_t* base, uint32_t func, uint32_t r4, uint32_t r5, uint32_t
     probe.pending = false;
     probe.dbg_src = 2;
     d = std::move(probe);
-    if (d.char_family != 0 && g_frame_char_refresh.size() < 256) {
+    if ((d.char_family != 0 || d.hall_of_meat) && g_frame_char_refresh.size() < 256) {
       g_frame_char_refresh.emplace(key, oldest->second);
     }
     if (!d.caster_bank) {
@@ -5766,7 +5930,8 @@ void OnDrawDone(uint8_t* base, uint32_t func, uint32_t r4, uint32_t r5, uint32_t
   }
   d.pending = false;
   d.dbg_src = 2;
-  if (d.char_family != 0 && g_frame_char_refresh.size() < 256) {
+  if (!d.skinned) CaptureHallOfMeatState(base, d);
+  if ((d.char_family != 0 || d.hall_of_meat) && g_frame_char_refresh.size() < 256) {
     g_frame_char_refresh.emplace(key, oldest->second);
   }
   if (!d.caster_bank) {
@@ -8294,6 +8459,12 @@ void WidenPublishedCamera(FrameScene& scene, float scale) {
 
 void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
   if (!SceneEnabled()) {
+    // F5 can disable native rendering between capture and publication.
+    // Re-enabling must wait for a new draw rather than replay an old lens effect.
+    g_frame_screen_fx = {};
+    std::lock_guard<std::mutex> lock(g_screen_fx_mutex);
+    g_screen_fx = {};
+    g_screen_fx.generation = g_guest_frame;
     return;
   }
   // The frame-end walks below chase captured pointers whose ranges world
@@ -8305,6 +8476,13 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
   // guest base from the very first natively rendered boot frame.
   g_guest_base.store(base, std::memory_order_relaxed);
   ++g_guest_frame;  // paces the world-item cache revalidation
+  // Screen effects advance even when this frame has no perspective view
+  // or no world items. A held world scene must not retain an expired lens effect.
+  const auto screen_fx = TakeScreenFxCapture(g_frame_screen_fx, g_guest_frame);
+  {
+    std::lock_guard<std::mutex> lock(g_screen_fx_mutex);
+    g_screen_fx = screen_fx;
+  }
   // Perf telemetry: guest frame interval + this frame's capture-hook cost.
   static PerfClock::time_point s_last_frame_tp{};
   // Previous frame's phase costs, for the slow-frame attribution below (a
@@ -8410,6 +8588,8 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
   // frame) would desynchronize the indices stored in the records.
   std::vector<DrawItem> dynitems;
   std::unordered_set<uint32_t> ortho_ctx;
+  const bool hom_active_frame =
+      g_frame_hom_seen.exchange(false, std::memory_order_relaxed);
   {
     std::lock_guard<std::mutex> lock(g_palette_mutex);
     dynitems.swap(g_frame_dynitems);
@@ -8562,7 +8742,8 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
         // one-frame-missing hat.
         if (cand.ropa) {
           pending_ropa_by_mesh.try_emplace(cand.mesh, &cand);
-        } else if (cand.skinned && cand.ctx != 0 && cand.char_family != 0) {
+        } else if (cand.skinned && cand.ctx != 0 &&
+                   (cand.char_family != 0 || cand.hall_of_meat)) {
           pending_skinned_by_ctx.try_emplace(cand.ctx, &cand);
         } else if (!cand.skinned && !cand.cloth_quads && cand.ctx != 0) {
           pending_rigid_by_ctx.try_emplace(cand.ctx, &cand);
@@ -8588,6 +8769,10 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
         // "prefer main pass" replacement published that partial list and
         // near vehicles went invisible).
         DrawItem& cur = scene.items[slot->second];
+        // Preserve a verified main-view HoM state even if a later generic
+        // pass wins the geometry arbitration below.
+        DrawItem hom_state;
+        if (cur.hall_of_meat && !cur.caster_bank) hom_state = cur;
         const bool fresher = !cand.caster_bank && cur.caster_bank;
         const bool staler = cand.caster_bank && !cur.caster_bank;
         const bool fuller = total_indices(cand) > total_indices(cur);
@@ -8602,8 +8787,13 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
         // visible successor of the invisible-torso bug once the near-camera
         // acceptance landed. The mode equality check is what prevents the
         // ribbon, not the ropa flag.
+        const bool hom_buffers_match = cand.vb_obj == cur.vb_obj &&
+                                       cand.ib_obj == cur.ib_obj &&
+                                       cand.stride == cur.stride;
         const bool graftable = cand.skinned == cur.skinned &&
-                               cand.ropa == cur.ropa && cand.mesh == cur.mesh;
+                               cand.ropa == cur.ropa && cand.mesh == cur.mesh &&
+                               (!(cand.hall_of_meat || cur.hall_of_meat) ||
+                                hom_buffers_match);
         if (fresher && fuller) {
           cur = cand;
         } else if (fresher && graftable) {
@@ -8611,6 +8801,11 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
           // fuller geometry (same mesh and buffers, lists differ only in
           // which islands each pass kept).
           cur.bones = cand.bones;
+          cur.hall_of_meat = cand.hall_of_meat;
+          std::memcpy(cur.hom_rows, cand.hom_rows, sizeof(cur.hom_rows));
+          if (cur.hall_of_meat) {
+            std::memcpy(cur.diffuse_fetch, cand.diffuse_fetch, sizeof(cur.diffuse_fetch));
+          }
           std::memcpy(cur.world, cand.world, sizeof(cur.world));
           std::memcpy(cur.char_rows, cand.char_rows, sizeof(cur.char_rows));
           std::memcpy(cur.tint, cand.tint, sizeof(cur.tint));
@@ -8621,6 +8816,11 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
           const DrawItem state = cur;
           cur = cand;
           cur.bones = state.bones;
+          cur.hall_of_meat = state.hall_of_meat;
+          std::memcpy(cur.hom_rows, state.hom_rows, sizeof(cur.hom_rows));
+          if (cur.hall_of_meat) {
+            std::memcpy(cur.diffuse_fetch, state.diffuse_fetch, sizeof(cur.diffuse_fetch));
+          }
           std::memcpy(cur.world, state.world, sizeof(cur.world));
           std::memcpy(cur.char_rows, state.char_rows, sizeof(cur.char_rows));
           std::memcpy(cur.tint, state.tint, sizeof(cur.tint));
@@ -8629,6 +8829,11 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
           cur = cand;  // same pass class: fullest wins, as before
         } else if (staler && fuller) {
           cur = cand;  // ungraftable (ropa): pre-arbitration fullest-wins
+        }
+        // Equal-size perspective captures need this too: otherwise the
+        // first generic pre-pass wins and hides the later HoM shader state.
+        if (!GraftHallOfMeatState(cur, cand)) {
+          GraftHallOfMeatState(cur, hom_state);
         }
       }
       continue;
@@ -8819,7 +9024,8 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
     // keyed by ctx: no pub_count gate needed, the key IS the instance.
     for (const DrawItem& item : scene.items) {
       if (!item.skinned || item.bones.empty() || item.caster_bank ||
-          item.ctx == 0 || item.char_family == 0 || item.ropa ||
+          item.ctx == 0 || (item.char_family == 0 && !item.hall_of_meat) ||
+          item.ropa ||
           item.draws.empty()) {
         continue;
       }
@@ -9178,6 +9384,10 @@ void BuildFrameScene(uint8_t* base, const SubmitRecord* records, size_t count) {
     }
     if (REXCVAR_GET(skate3_native_render_scene_dyn_gap_fill)) {
       for (auto& [mesh, t] : s_last_pub) {
+        if (t.item.hall_of_meat && !hom_active_frame) {
+          t.frame = 0;
+          continue;
+        }
         if (t.frame == 0 || t.frame == s_pub_frame) {
           continue;  // published this frame (or placeholder)
         }

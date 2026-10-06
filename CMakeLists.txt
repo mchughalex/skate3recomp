@@ -306,6 +306,7 @@ set(SKATE3_NATIVE_SHADER_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/native/shaders/overlay2d.hlsl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/native/shaders/spline.hlsl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/native/shaders/photo_fx.hlsl
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/native/shaders/screen_fx.hlsl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/native/shaders/ssao.hlsl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/native/shaders/hdr.hlsl
     ${CMAKE_CURRENT_SOURCE_DIR}/src/native/shaders/ssr.hlsl

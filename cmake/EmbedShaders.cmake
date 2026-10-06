@@ -14,6 +14,7 @@ set(SHADER_VARS
     kShader2dSource
     kShaderSplineSource
     kPhotoFxShaderSource
+    kScreenFxShaderSource
     kSsaoShaderSource
     kHdrShaderSource
     kSsrShaderSource
@@ -27,6 +28,7 @@ set(SHADER_FILES
     overlay2d.hlsl
     spline.hlsl
     photo_fx.hlsl
+    screen_fx.hlsl
     ssao.hlsl
     hdr.hlsl
     ssr.hlsl

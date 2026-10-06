@@ -2805,7 +2805,7 @@ bool EnsureScenePsoFamily(const NativeGuestOutputRenderContext& context) {
   for (nrhi::Pipeline** p :
        {&g_r.pso, &g_r.pso_cullback, &g_r.pso_transparent, &g_r.pso_fade,
         &g_r.pso_hair_a, &g_r.pso_hair_b, &g_r.pso_nodepth,
-        &g_r.pso_outline_mask}) {
+        &g_r.pso_outline_mask, &g_r.pso_hom}) {
     if (*p != nullptr) {
       device->DestroyDeferred(*p);
       *p = nullptr;
@@ -2920,10 +2920,34 @@ bool EnsureScenePsoFamily(const NativeGuestOutputRenderContext& context) {
   }
   pso.rtv_format = scene_fmt;
   pso.sample_count = g_r.msaa;
+  // The retail HoM shader supplies its injury color and rim highlight.
+  // Its observed draw state is replace blending, LEQUAL depth with writes,
+  // and front-face culling. A private cleared depth plane preserves bone
+  // self-occlusion while reconstructing the gameplay x-ray effect.
+  nrhi::Shader* hom_vs = device->CreateShader(
+      MakeShaderDesc(nrhi::ShaderStage::kVertex, "scene.hlsl", kShaderSource,
+                     "vs_hom", nullptr, ""));
+  nrhi::Shader* hom_ps = device->CreateShader(
+      MakeShaderDesc(nrhi::ShaderStage::kPixel, "scene.hlsl", kShaderSource,
+                     "ps_hom", ps_def_count != 0 ? ps_defs : nullptr,
+                     ps_variant));
+  if (hom_vs != nullptr && hom_ps != nullptr) {
+    pso.vs = hom_vs;
+    pso.ps = hom_ps;
+    pso.cull = nrhi::CullMode::kFront;
+    pso.blend = {};
+    pso.depth.test_enable = true;
+    pso.depth.write_enable = true;
+    pso.depth.func = nrhi::CompareFunc::kLessEqual;
+    pso.dsv_format = nrhi::Format::kD32_FLOAT;
+    g_r.pso_hom = device->CreateGraphicsPipeline(pso);
+  }
+  if (hom_vs != nullptr) device->DestroyDeferred(hom_vs);
+  if (hom_ps != nullptr) device->DestroyDeferred(hom_ps);
   device->DestroyDeferred(vs);
   device->DestroyDeferred(ps);
   if (g_r.pso == nullptr || g_r.pso_nodepth == nullptr ||
-      g_r.pso_transparent == nullptr) {
+      g_r.pso_transparent == nullptr || g_r.pso_hom == nullptr) {
     REXLOG_ERROR("native-scene: PSO creation failed");
     g_r.failed = true;
     return false;
@@ -3578,6 +3602,193 @@ bool EnsurePhotoFxPipeline(const NativeGuestOutputRenderContext& context) {
   return true;
 }
 
+// The final lens shader also runs during gameplay and replay. It needs only its own layout, a full-size input
+// copy and one constant slice; creating the complete photo chain here would
+// allocate unused depth, DOF and grade resources.
+bool DecodeScreenFxBlend(const FrameScene::ScreenFx& fx,
+                         nrhi::BlendStateDesc& blend) {
+  // Preserve supported guest factors rather than inferring blend state
+  // from the pixel shader's opaque/alpha name.
+  const auto factor = [](uint32_t guest, nrhi::BlendFactor& host) {
+    switch (guest) {
+      case 0: host = nrhi::BlendFactor::kZero; return true;
+      case 1: host = nrhi::BlendFactor::kOne; return true;
+      case 6: host = nrhi::BlendFactor::kSrcAlpha; return true;
+      case 7: host = nrhi::BlendFactor::kInvSrcAlpha; return true;
+      default: return false;
+    }
+  };
+  const auto op = [](uint32_t guest, nrhi::BlendOp& host) {
+    switch (guest) {
+      case 0: host = nrhi::BlendOp::kAdd; return true;
+      case 2: host = nrhi::BlendOp::kMin; return true;
+      default: return false;
+    }
+  };
+  const uint32_t control = fx.render_states[1];
+  blend.write_mask = uint8_t(fx.color_mask & 0xFu);
+  if ((fx.render_states[2] & 0x18u) != 0 ||
+      !factor(control & 31u, blend.src) ||
+      !factor((control >> 8) & 31u, blend.dst) ||
+      !factor((control >> 16) & 31u, blend.src_alpha) ||
+      !factor((control >> 24) & 31u, blend.dst_alpha) ||
+      !op((control >> 5) & 7u, blend.op) ||
+      !op((control >> 21) & 7u, blend.op_alpha)) {
+    return false;
+  }
+  blend.enable = !(blend.src == nrhi::BlendFactor::kOne &&
+                   blend.dst == nrhi::BlendFactor::kZero &&
+                   blend.src_alpha == nrhi::BlendFactor::kOne &&
+                   blend.dst_alpha == nrhi::BlendFactor::kZero &&
+                   blend.op == nrhi::BlendOp::kAdd &&
+                   blend.op_alpha == nrhi::BlendOp::kAdd);
+  return true;
+}
+
+nrhi::Pipeline* EnsureScreenFxPipeline(
+    const NativeGuestOutputRenderContext& context,
+    const FrameScene::ScreenFx& fx) {
+  nrhi::BlendStateDesc blend;
+  if (!DecodeScreenFxBlend(fx, blend)) {
+    static uint32_t unsupported_logs = 0;
+    if (unsupported_logs++ < 8) {
+      REXLOG_WARN("native-scene: screen effect skipped: unsupported blend/alpha "
+                  "state blend={:08X} color={:08X}",
+                  fx.render_states[1], fx.render_states[2]);
+    }
+    return nullptr;
+  }
+  if (blend.write_mask == 0) return nullptr;
+  nrhi::Device* device = context.device;
+  const nrhi::Format format = context.guest_output->format();
+  if (g_r.screen_fx_format != format) {
+    for (const auto& [key, pso] : g_r.screen_fx_psos) {
+      device->DestroyDeferred(pso);
+    }
+    g_r.screen_fx_psos.clear();
+    if (g_r.screen_fx_copy_pso != nullptr) {
+      device->DestroyDeferred(g_r.screen_fx_copy_pso);
+      g_r.screen_fx_copy_pso = nullptr;
+    }
+    if (g_r.screen_fx_input_srv != nullptr) {
+      device->DestroyDeferred(g_r.screen_fx_input_srv);
+      g_r.screen_fx_input_srv = nullptr;
+    }
+    if (g_r.screen_fx_input != nullptr) {
+      device->DestroyDeferred(g_r.screen_fx_input);
+      g_r.screen_fx_input = nullptr;
+    }
+    g_r.screen_fx_format = format;
+    g_r.screen_fx_width = g_r.screen_fx_height = 0;
+  }
+  if (g_r.screen_fx_layout == nullptr) {
+    nrhi::BindingLayoutDesc desc;
+    desc.param_count = 2;
+    desc.params[0] = {nrhi::BindingParamKind::kConstantBuffer, 0, 1,
+                      nrhi::Visibility::kAll};
+    desc.params[1] = {nrhi::BindingParamKind::kTextureTable, 0, 3,
+                      nrhi::Visibility::kPixel};
+    desc.static_sampler_count = 1;
+    desc.static_samplers[0] = {0, nrhi::Filter::kLinear,
+                               nrhi::AddressMode::kClamp, 1};
+    desc.allow_input_layout = false;
+    g_r.screen_fx_layout = device->CreateBindingLayout(desc);
+    if (g_r.screen_fx_layout == nullptr) return nullptr;
+  }
+  if (g_r.screen_fx_cb == nullptr) {
+    g_r.screen_fx_cb = CreateUploadBuffer(
+        device, size_t(RendererState::kScreenFxCbSlice) *
+                    RendererState::kScreenFxCbRegions);
+    if (g_r.screen_fx_cb != nullptr) {
+      g_r.screen_fx_cb_ptr =
+          static_cast<uint8_t*>(device->Map(g_r.screen_fx_cb));
+    }
+    if (g_r.screen_fx_cb_ptr == nullptr) {
+      if (g_r.screen_fx_cb != nullptr) {
+        device->DestroyDeferred(g_r.screen_fx_cb);
+        g_r.screen_fx_cb = nullptr;
+      }
+      return nullptr;
+    }
+  }
+  if (g_r.screen_fx_input == nullptr || g_r.screen_fx_input_srv == nullptr ||
+      g_r.screen_fx_width != context.guest_output_width ||
+      g_r.screen_fx_height != context.guest_output_height) {
+    if (g_r.screen_fx_input_srv != nullptr) {
+      device->DestroyDeferred(g_r.screen_fx_input_srv);
+      g_r.screen_fx_input_srv = nullptr;
+    }
+    if (g_r.screen_fx_input != nullptr) {
+      device->DestroyDeferred(g_r.screen_fx_input);
+      g_r.screen_fx_input = nullptr;
+    }
+    nrhi::TextureDesc desc;
+    desc.width = context.guest_output_width;
+    desc.height = context.guest_output_height;
+    desc.format = format;
+    desc.usage = nrhi::kTextureUsageRenderTarget;
+    desc.initial_state = nrhi::ResourceState::kRenderTarget;
+    g_r.screen_fx_input = device->CreateTexture(desc);
+    if (g_r.screen_fx_input == nullptr) return nullptr;
+    nrhi::TextureViewDesc view;
+    view.mip_levels = 1;
+    g_r.screen_fx_input_srv =
+        device->CreateTextureView(g_r.screen_fx_input, view);
+    if (g_r.screen_fx_input_srv == nullptr) return nullptr;
+    g_r.screen_fx_width = context.guest_output_width;
+    g_r.screen_fx_height = context.guest_output_height;
+  }
+  const auto build = [&](const char* file, const char* source,
+                         const char* vs_entry, const char* ps_entry,
+                         const nrhi::BlendStateDesc& state) {
+    nrhi::Shader* vs = device->CreateShader(MakeShaderDesc(
+        nrhi::ShaderStage::kVertex, file, source, vs_entry, nullptr, ""));
+    nrhi::Shader* ps = device->CreateShader(MakeShaderDesc(
+        nrhi::ShaderStage::kPixel, file, source, ps_entry, nullptr, ""));
+    nrhi::Pipeline* result = nullptr;
+    if (vs != nullptr && ps != nullptr) {
+      nrhi::GraphicsPipelineDesc desc;
+      desc.layout = g_r.screen_fx_layout;
+      desc.vs = vs;
+      desc.ps = ps;
+      desc.cull = nrhi::CullMode::kNone;
+      desc.rtv_format = format;
+      desc.sample_count = 1;
+      desc.blend = state;
+      result = device->CreateGraphicsPipeline(desc);
+    }
+    if (vs != nullptr) device->DestroyDeferred(vs);
+    if (ps != nullptr) device->DestroyDeferred(ps);
+    return result;
+  };
+  if (g_r.screen_fx_copy_pso == nullptr) {
+    g_r.screen_fx_copy_pso = build("photo_fx.hlsl", kPhotoFxShaderSource,
+                                  "vs_raw", "ps_blit", {});
+    if (g_r.screen_fx_copy_pso == nullptr) return nullptr;
+  }
+  const uint64_t key = uint64_t(fx.render_states[1] & 0x1FFF1FFFu) |
+                       (uint64_t(blend.write_mask) << 32) |
+                       (uint64_t(fx.scaled_uv) << 36) |
+                       (uint64_t(fx.variant) << 37);
+  const auto found = g_r.screen_fx_psos.find(key);
+  if (found != g_r.screen_fx_psos.end()) return found->second;
+  const char* ps_entry = fx.variant == ScreenFxVariant::kOpaque ? "ps_opaque"
+                         : "ps_alpha";
+  nrhi::Pipeline* pso = build("screen_fx.hlsl", kScreenFxShaderSource,
+                              fx.scaled_uv ? "vs_scaled" : "vs_raw", ps_entry,
+                              blend);
+  if (pso == nullptr) return nullptr;
+  // Bound the state cache even if the guest stages many unusual masks.
+  if (g_r.screen_fx_psos.size() >= 64) {
+    for (const auto& [old_key, old_pso] : g_r.screen_fx_psos) {
+      device->DestroyDeferred(old_pso);
+    }
+    g_r.screen_fx_psos.clear();
+  }
+  g_r.screen_fx_psos.emplace(key, pso);
+  return pso;
+}
+
 // Shadow atlas targets + the always-bound b1 receiver constant buffer.
 bool EnsureShadowResources(const NativeGuestOutputRenderContext& context) {
   nrhi::Device* device = context.device;
@@ -4000,6 +4211,10 @@ bool EnsureOutputSizedTargets(const NativeGuestOutputRenderContext& context) {
       g_r.targets_hdr != g_r.hdr_active ||
       g_r.targets_scene_fmt != want_scene_fmt ||
       g_r.targets_msaa != g_r.msaa) {
+    if (g_r.hom_depth != nullptr) {
+      device->DestroyDeferred(g_r.hom_depth);
+      g_r.hom_depth = nullptr;
+    }
     if (g_r.depth) {
       // The AO/SSR/volumetric scene-depth SRVs alias this texture and
       // re-point on pointer identity; heap reuse can hand the NEW depth
@@ -4140,6 +4355,20 @@ bool EnsureOutputSizedTargets(const NativeGuestOutputRenderContext& context) {
     g_r.targets_msaa = g_r.msaa;
   }
   return true;
+}
+
+bool EnsureHallOfMeatDepth(const NativeGuestOutputRenderContext& context) {
+  if (g_r.hom_depth != nullptr) return true;
+  nrhi::TextureDesc desc;
+  desc.width = context.guest_output_width;
+  desc.height = context.guest_output_height;
+  desc.format = nrhi::Format::kD32_FLOAT;
+  desc.sample_count = g_r.msaa;
+  desc.usage = nrhi::kTextureUsageDepthStencil;
+  desc.initial_state = nrhi::ResourceState::kDepthWrite;
+  desc.clear_depth = 1.0f;
+  g_r.hom_depth = context.device->CreateTexture(desc);
+  return g_r.hom_depth != nullptr;
 }
 
 bool EnsurePipeline(const NativeGuestOutputRenderContext& context) {
@@ -6510,7 +6739,7 @@ bool RenderShadowAtlas(const NativeGuestOutputRenderContext& context,
     std::vector<Caster> casters;
     bool any_clip = false;
     for (const DrawItem& item : scene.items) {
-      if (item.transparent || item.unlit || item.cloth_quads) {
+      if (item.hall_of_meat || item.transparent || item.unlit || item.cloth_quads) {
         continue;
       }
       const bool skinned = item.skinned && !item.bones.empty();
@@ -8410,7 +8639,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
          item.char_family == 3 || item.char_family == 6) &&
         debug_mode == 0 && CharFadeAlpha(item) < 0.999f &&
         REXCVAR_GET(skate3_native_render_scene_entity_fade);
-    if (use_depth && !item.transparent && !item.water && !hair_pass &&
+    if (use_depth && !item.hall_of_meat && !item.transparent && !item.water && !hair_pass &&
         !refl_trans_pass && !char_fade_pass && g_r.pso_cullback != nullptr) {
       const float* w = item.world;
       const float det3 = w[0] * (w[5] * w[10] - w[6] * w[9]) -
@@ -8882,6 +9111,17 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // char_rows[14*4+1] stays 0 when the capture failed validation, which
     // keeps the item on the legacy empirical shading.
     constants[39] = 0.0f;
+    if (debug_mode == 0 && item.hall_of_meat) {
+      const uint32_t offset = (g_r.bone_ring_offset + 255u) & ~255u;
+      if (offset + 512u > RendererState::kBoneRegionSize) return;
+      // b2 is the existing character constant slot, used only by ps_hom
+      // for these six draw-time rows. Clear its full declared footprint.
+      float* dst = reinterpret_cast<float*>(g_r.bone_ring_cpu + bone_region + offset);
+      std::fill_n(dst, 72, 0.0f);
+      std::memcpy(dst, item.hom_rows, sizeof(item.hom_rows));
+      g_r.bone_ring_offset = offset + 512u;
+      cmd->SetConstantBuffer(9, g_r.bone_ring, bone_region + offset);
+    }
     if (debug_mode == 0 && item.char_family != 0 &&
         item.char_rows[14 * 4 + 1] > 0.0f) {
       const uint32_t offset = (g_r.bone_ring_offset + 255u) & ~255u;
@@ -9449,7 +9689,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // SSR: record reflective items, env fams 5/6/13 on their exact branch
     // with live spec masks (the reflection mask rides t4.z), plus water,
     // for the reflection G-buffer pass after the scene pass.
-    if (ssr_on && !item.skinned &&
+    if (ssr_on && !item.hall_of_meat && !item.skinned &&
         (item.water ||
          ((item.env_family == 5 || item.env_family == 6 ||
            item.env_family == 13) &&
@@ -9463,6 +9703,14 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       si.fingerprint = item.fingerprint;
       si.item = &item;
       ssr_items.push_back(si);
+    }
+    if (debug_mode == 0 && item.hall_of_meat) {
+      // vs_hom computes the retail fog per vertex, then the PS interpolates
+      // it. These root fields are unused by ordinary HoM geometry.
+      constants[43] = item.hom_rows[23];
+      constants[49] = item.hom_rows[16];
+      constants[50] = item.hom_rows[17];
+      constants[51] = item.hom_rows[18];
     }
     if (prof_items) {
       di_t3 = PerfClock::now();
@@ -9760,6 +10008,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     return d2;
   };
   std::vector<const DrawItem*> transparent_items;
+  std::vector<const DrawItem*> hom_items;
   // Mid-fade entity items (see CharFadeAlpha / pso_fade): blended but with
   // z-write ON, drawn at the HEAD of the blended sub-pass; they behave like
   // main-pass objects whose glass/hair still composites over them, and depth
@@ -9836,6 +10085,17 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
                          (item.decal ? 64u : 0u));
       ring_map.emplace(&item, uint32_t(ring_frame->items.size()));
       ring_frame->items.push_back(ri);
+    }
+    const auto stamp_route = [&](uint8_t route) {
+      if (ring_frame != nullptr) {
+        const auto rit = ring_map.find(&item);
+        if (rit != ring_map.end()) ring_frame->items[rit->second].route = route;
+      }
+    };
+    if (debug_mode == 0 && item.hall_of_meat) {
+      hom_items.push_back(&item);
+      stamp_route(4);
+      continue;
     }
     // Hair with a validated lighting capture joins the sorted alpha
     // sub-pass (strand coverage blend, depth test on / z-write off, the
@@ -9974,14 +10234,6 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // opaque exactly as before classification).
     const bool refl_trans_blend =
         item.env_family == 13 && scene.shadow_valid;
-    const auto stamp_route = [&](uint8_t route) {
-      if (ring_frame != nullptr) {
-        const auto rit = ring_map.find(&item);
-        if (rit != ring_map.end()) {
-          ring_frame->items[rit->second].route = route;
-        }
-      }
-    };
     // Occlusion cull (statics only; same classifiability gate as the
     // profiler): the 1 m depth margin on top of the conservative bbox test
     // keeps reveal edges safe at speed - deeply hidden mass sits many
@@ -10112,6 +10364,19 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       }
       timed_draw(*item);
     }
+  }
+  if (!hom_items.empty() && g_r.pso_hom != nullptr &&
+      EnsureHallOfMeatDepth(context)) {
+    // Keep the scene binding layout and its frame CBV live. Only the DSV
+    // changes: skeleton depth never contaminates AO, SSR, or photo depth.
+    cmd->ClearDepth(g_r.hom_depth, 1.0f);
+    cmd->SetRenderTargets(scene_color, g_r.hom_depth);
+    cmd->SetPipeline(g_r.pso_hom);
+    scene_pso_bound = g_r.pso_hom;
+    for (const DrawItem* item : hom_items) timed_draw(*item);
+    cmd->SetRenderTargets(scene_color, use_depth ? g_r.depth : nullptr);
+    cmd->SetPipeline(use_depth ? g_r.pso : g_r.pso_nodepth);
+    scene_pso_bound = use_depth ? g_r.pso : g_r.pso_nodepth;
   }
   g_pw_items.Add(perf_ns_since(items_t0));
   g_pw_pre.Add(uint64_t(std::chrono::duration_cast<std::chrono::nanoseconds>(
@@ -10567,6 +10832,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
   // constants were captured this frame, apply the game's own chain over the
   // resolved native frame: depth pack -> visualfx (grade/vignette/CoC) ->
   // DOF downsample -> tap9dofMotionBlur -> tap9dof -> uber -> fisheye.
+  bool photo_fx_applied = false;
   if (scene.photo_fx.valid &&
       REXCVAR_GET(skate3_native_render_scene_photo_native) &&
       EnsurePhotoFxPipeline(context)) {
@@ -10909,6 +11175,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       cmd->SetConstantBuffer(0, g_r.pfx_cb, fill_cb(kPfxFisheye));
       pfx_bind_all(g_r.pfx_srv[1], W, vig_slot, W, g_r.pfx_srv[6], W, W, W);
       cmd->Draw(3, 0);
+      photo_fx_applied = true;
 
       // 8b) Debug view (photo_native_debug): overwrite the output with the
       //     visualfx CoC map (mode 1) or the packed-depth reconstruction
@@ -10965,6 +11232,88 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
             "vignette {}, grain {})",
             accum_mode, vig_slot == W ? "WHITE-fallback" : "resolved",
             grain_slot == W ? "WHITE-fallback" : "resolved");
+      }
+    }
+  }
+
+  // The final gameplay/replay lens effect are draw-driven,
+  // independent of the editor chain and of a retained world FrameScene.
+  // The current guest frame publishes kNone when no such draw occurred.
+  const FrameScene::ScreenFx screen_fx = GetScreenFxSnapshot();
+  if (!photo_fx_applied && ScreenFxCaptureValid(screen_fx) &&
+      g_r.output_srv_slot != nullptr) {
+    nrhi::Pipeline* fx_pso = EnsureScreenFxPipeline(context, screen_fx);
+    if (fx_pso != nullptr) {
+      const GuestTexture* vignette =
+          resolve_2d_texture(screen_fx.fetch[2], /*force_inline=*/true);
+      // A white fallback is not neutral for the vignette equation.
+      // Apply only when its captured texture has decoded.
+      if (vignette != nullptr && vignette != &g_r.white && vignette->valid &&
+          vignette->srv != nullptr) {
+        const uint64_t cb_offset =
+            uint64_t(frame_number % RendererState::kScreenFxCbRegions) *
+            RendererState::kScreenFxCbSlice;
+        uint8_t* dst = g_r.screen_fx_cb_ptr + cb_offset;
+        std::memset(dst, 0, RendererState::kScreenFxCbSlice);
+        float* rows = reinterpret_cast<float*>(dst);
+        std::memcpy(rows, screen_fx.ps, sizeof(screen_fx.ps));
+        std::memcpy(rows + 240 * 4, screen_fx.vs, sizeof(screen_fx.vs));
+        // Host-only sampling row: a captured BaseMap fetch must stay at
+        // its minimum mip even if the native texture cache generated an
+        // otherwise-unused mip chain. Negative values retain implicit LOD.
+        rows[248 * 4] = ScreenFxBaseMapLod(screen_fx.fetch[0]);
+        rows[248 * 4 + 1] = ScreenFxBaseMapLod(screen_fx.fetch[2]);
+        // The fullscreen triangle already samples pixel centers. Recognize
+        // the captured half-texel pair from the source texture dimensions;
+        // arbitrary small authored translations must remain intact.
+        const float source_w = float((screen_fx.fetch[0][2] & 0x1FFFu) + 1u);
+        const float source_h =
+            float(((screen_fx.fetch[0][2] >> 13) & 0x1FFFu) + 1u);
+        if (screen_fx.scaled_uv &&
+            std::fabs(rows[242 * 4] - 0.5f / source_w) < 1.0e-7f &&
+            std::fabs(rows[242 * 4 + 1] - 0.5f / source_h) < 1.0e-7f) {
+          rows[242 * 4] = rows[242 * 4 + 1] = 0.0f;
+        }
+        nrhi::TextureView* views[3] = {
+            g_r.output_srv_slot, g_r.white.srv, g_r.white.srv};
+        cmd->Barrier(context.guest_output, nrhi::ResourceState::kRenderTarget,
+                     nrhi::ResourceState::kPixelShaderResource);
+        cmd->FlushBarriers();
+        cmd->SetRenderTargets(g_r.screen_fx_input, nullptr);
+        cmd->SetBindingLayout(g_r.screen_fx_layout);
+        cmd->SetConstantBuffer(0, g_r.screen_fx_cb, cb_offset);
+        cmd->SetTextures(1, views, 3);
+        cmd->SetViewport(viewport);
+        cmd->SetScissor(scissor);
+        cmd->SetPrimitiveTopology(nrhi::PrimitiveTopology::kTriangleList);
+        cmd->SetPipeline(g_r.screen_fx_copy_pso);
+        cmd->Draw(3, 0);
+        cmd->Barrier(g_r.screen_fx_input, nrhi::ResourceState::kRenderTarget,
+                     nrhi::ResourceState::kPixelShaderResource);
+        cmd->Barrier(context.guest_output,
+                     nrhi::ResourceState::kPixelShaderResource,
+                     nrhi::ResourceState::kRenderTarget);
+        cmd->FlushBarriers();
+        views[0] = g_r.screen_fx_input_srv;
+        views[2] = vignette->srv;
+        cmd->SetRenderTargets(context.guest_output, nullptr);
+        cmd->SetTextures(1, views, 3);
+        cmd->SetPipeline(fx_pso);
+        cmd->Draw(3, 0);
+        cmd->Barrier(g_r.screen_fx_input,
+                     nrhi::ResourceState::kPixelShaderResource,
+                     nrhi::ResourceState::kRenderTarget);
+        cmd->FlushBarriers();
+        // Later photo-grab/blur/HUD passes use the main scene layout.
+        cmd->SetBindingLayout(g_r.layout);
+        if (g_r.shadow_cb != nullptr) {
+          const uint32_t frame_cb_offset =
+              uint32_t(frame_number % RendererState::kShadowCbRegions) *
+              RendererState::kShadowCbSlice;
+          cmd->SetConstantBuffer(6, g_r.shadow_cb, frame_cb_offset);
+        }
+        cmd->SetConstantBuffer(9, g_r.bone_ring, bone_region);
+        cmd->SetPipeline(use_depth ? g_r.pso : g_r.pso_nodepth);
       }
     }
   }
