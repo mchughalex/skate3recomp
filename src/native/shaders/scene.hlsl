@@ -54,6 +54,7 @@ cbuffer CH : register(b2) {
   float4 ch_ks;     // rgb = key spec color, w = power (0 = spec rows absent)
   float4 ch_rs;     // rgb = rim spec color, w = power
   float4 ch_rim;    // rgb = rim light color, w = key-spec fresnel power
+  float4 ch_body_fade;  // zw = independent body opacity / override flag
 };
 Texture2D<float4> diffuse : register(t0);
 Texture2D<float4> lightmap : register(t1);
@@ -197,7 +198,8 @@ float4 ShadePixel(VSOut i) {
   // rendered rigid (sim-active player tees, clipping their gloss alpha
   // discarded every pixel: the invisible-shirt bug; their decode writes
   // zero blend weights, so the VS skinning branch stays off).
-  if (tint.g == 0.0 && overlay.w < 0.5 && cam_pos.w > -20.5) {
+  if (tint.g == 0.0 && overlay.w < 0.5 && cam_pos.w > -20.5 &&
+      ch_body_fade.w < 0.5) {
     // environment.transparent alpha-tests its SQUARED alpha at ref 16/255
     // (transparentenvironment.xml: ALPHAREF 16, PS outputs a = diffuse.a^2).
     // Exact env families (cam_pos.w < 0) use the game's world ALPHAREF 30.
@@ -741,6 +743,8 @@ float4 ps_main(VSOut i) : SV_Target {
     return float4(0.0, 0.0, 0.0, 0.0);
   }
   float4 c = ShadePixel(i);
+  // Body opacity remains uniform when individual lighting captures are absent.
+  if (ch_body_fade.w > 0.5) c.a = ch_body_fade.z;
   // Blackout stage (bit 1024, the showcase's opening/closing bookends and
   // the recording cut marker): every draw renders black, keeping its own
   // alpha so coverage, alpha test and blend routing stay intact.

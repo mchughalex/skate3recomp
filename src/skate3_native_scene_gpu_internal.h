@@ -477,12 +477,9 @@ struct RendererState {
   // environment.transparent sub-pass: straight alpha blend, depth test on,
   // z-write OFF; items drawn back-to-front after all opaque items.
   nrhi::Pipeline* pso_transparent = nullptr;
-  // Entity-fade variant of the transparent PSO: same straight alpha blend
-  // but z-write ON. A fading character/vehicle is a solid object at partial
-  // opacity; z-write-off blending composites every overlapping piece (skin
-  // under clothes, far-side doors/wheels through the body shell) into an
-  // x-ray. With depth writes the nearest surface wins and each pixel blends
-  // once, matching the game's main-pass fade.
+  // Resolve body visibility before applying uniform opacity.
+  nrhi::Pipeline* pso_fade_depth = nullptr;
+  // Shade only samples at the established body depth.
   nrhi::Pipeline* pso_fade = nullptr;
   // Hair sub-passes: transparent blend state with cull BACK / cull FRONT
   // (the game's cac_hair/defaulthair two-pass draw order).

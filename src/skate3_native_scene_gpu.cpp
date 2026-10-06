@@ -38,6 +38,7 @@
 #include <rex/logging.h>
 
 #include "native/skate3_native_diag.h"
+#include "native/character_fade.h"
 #include "native/skate3_native_entity.h"
 #include "native/skate3_native_guest_read.h"
 #include "native/skate3_native_lw.h"
@@ -2803,7 +2804,7 @@ bool EnsureScenePsoFamily(const NativeGuestOutputRenderContext& context) {
   // previous pipelines (in-flight frames keep them alive via the deferred
   // destruction queue).
   for (nrhi::Pipeline** p :
-       {&g_r.pso, &g_r.pso_cullback, &g_r.pso_transparent, &g_r.pso_fade,
+       {&g_r.pso, &g_r.pso_cullback, &g_r.pso_transparent, &g_r.pso_fade_depth, &g_r.pso_fade,
         &g_r.pso_hair_a, &g_r.pso_hair_b, &g_r.pso_nodepth,
         &g_r.pso_outline_mask}) {
     if (*p != nullptr) {
@@ -2884,13 +2885,15 @@ bool EnsureScenePsoFamily(const NativeGuestOutputRenderContext& context) {
   pso.blend.dst_alpha = nrhi::BlendFactor::kInvSrcAlpha;
   pso.blend.op_alpha = nrhi::BlendOp::kAdd;
   g_r.pso_transparent = device->CreateGraphicsPipeline(pso);
-  // Entity-fade variant: z-write ON (see RendererState::pso_fade). Drawn
-  // at the head of the blended sub-pass so glass/hair still composite
-  // over the faded body.
-  pso.depth.write_enable = true;
+  // Establish the nearest body surface before blending any overlapping piece.
+  nrhi::GraphicsPipelineDesc fade_depth = pso;
+  fade_depth.depth.write_enable = true;
+  fade_depth.blend = {};
+  fade_depth.blend.write_mask = 0;
+  g_r.pso_fade_depth = device->CreateGraphicsPipeline(fade_depth);
+  pso.depth.func = nrhi::CompareFunc::kEqual;
   g_r.pso_fade = device->CreateGraphicsPipeline(pso);
-  // (nullptr = fade items fall back to the z-write-off blend)
-  pso.depth.write_enable = false;
+  pso.depth.func = nrhi::CompareFunc::kLess;
   // Hair passes: the game draws hair twice with the SAME shader; cull
   // BACK then cull FRONT (cac_hair.xml passes 0/1) so far-side strands
   // never composite over near-side ones (one uncull(ed) blended pass
@@ -2923,7 +2926,8 @@ bool EnsureScenePsoFamily(const NativeGuestOutputRenderContext& context) {
   device->DestroyDeferred(vs);
   device->DestroyDeferred(ps);
   if (g_r.pso == nullptr || g_r.pso_nodepth == nullptr ||
-      g_r.pso_transparent == nullptr) {
+      g_r.pso_transparent == nullptr || g_r.pso_fade_depth == nullptr ||
+      g_r.pso_fade == nullptr) {
     REXLOG_ERROR("native-scene: PSO creation failed");
     g_r.failed = true;
     return false;
@@ -7697,7 +7701,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
   const uint32_t bone_region =
       uint32_t(frame_number % RendererState::kBoneRegions) *
       RendererState::kBoneRegionSize;
-  g_r.bone_ring_offset = 0;
+  // A neutral b2 block prevents ordinary draws from inheriting body opacity.
+  std::memset(g_r.bone_ring_cpu + bone_region, 0, 512u);
+  g_r.bone_ring_offset = 512u;
   g_r.ropa_ring_offset = 0;
 
   {
@@ -8302,6 +8308,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
   // cost. Sampled once per RenderScene call; the per-item clock reads only
   // happen while the cvar is on.
   const bool prof_items = REXCVAR_GET(skate3_native_render_scene_perf_items);
+  bool opaque_scene_pass = false;
+  CharacterFadeUniformCache fade_uniforms;
+  std::unordered_map<const DrawItem*, VbBinding> fade_ropa_bindings;
   const auto draw_item = [&](const DrawItem& item) {
     // Stage split points (profiling only): t0..t1 mesh serve, t1..t2 texture
     // serve, t2..t3 constants assembly, t3..end binds + draw recording.
@@ -8311,6 +8320,13 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     if (prof_items) {
       di_t0 = PerfClock::now();
     }
+    const auto body_fade = ResolveCharacterBodyFade(
+        item.char_family, item.char_alpha, item.lw_alpha,
+        item.char_rows[14 * 4 + 1], item.char_rows[14 * 4],
+        debug_mode == 0 && REXCVAR_GET(skate3_native_render_scene_entity_fade));
+    const bool shared_body_uniforms = body_fade.eligible &&
+                                     body_fade.opacity > 0.004f &&
+                                     body_fade.opacity < 0.999f;
     // NO per-frame inline decodes here. Static content (world geometry,
     // props) loads/heals on the decode workers via the miss queue; a
     // texture decode averages ~10 ms and panning surfaces dozens of new
@@ -8394,24 +8410,8 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // front/back copies z-fight into lightmap flicker at range (banners/
     // flags). Opaque depth pass only; a mirrored instance (negative world
     // determinant) would flip winding, so those stay uncull(ed).
-    // (hair items with a validated lighting capture draw in the blended
-    // sub-pass under their own cull PSOs; never reset those here)
-    const bool hair_pass = item.char_family >= 4 && item.char_family <= 5 &&
-                           item.char_rows[14 * 4 + 1] > 0.0f;
-    // reflective_trans glass draws in the blended sub-pass whenever its
-    // exact branch is live (same gate as the sub-pass routing below); the
-    // opaque cull-PSO reset must not fire there.
-    const bool refl_trans_pass =
-        item.env_family == 13 && debug_mode == 0 && scene.shadow_valid;
-    // Character items mid-fade (spawn settle / distance) draw in the blended
-    // sub-pass too (same gate as the routing below), same exemption.
-    const bool char_fade_pass =
-        (item.char_family == 1 || item.char_family == 2 ||
-         item.char_family == 3 || item.char_family == 6) &&
-        debug_mode == 0 && CharFadeAlpha(item) < 0.999f &&
-        REXCVAR_GET(skate3_native_render_scene_entity_fade);
-    if (use_depth && !item.transparent && !item.water && !hair_pass &&
-        !refl_trans_pass && !char_fade_pass && g_r.pso_cullback != nullptr) {
+    // Visibility and blend passes retain their caller-selected pipeline.
+    if (opaque_scene_pass && use_depth && g_r.pso_cullback != nullptr) {
       const float* w = item.world;
       const float det3 = w[0] * (w[5] * w[10] - w[6] * w[9]) -
                          w[1] * (w[4] * w[10] - w[6] * w[8]) +
@@ -8830,7 +8830,29 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     }
     // Bone palette upload for skinned items; tint.g flags skinning.
     bool bones_bound = false;
-    if (item.skinned && !item.bones.empty()) {
+    const CharacterFadeUniformReservation* fade_uniform = nullptr;
+    if (shared_body_uniforms) {
+      const uint64_t palette_bytes = item.skinned
+          ? uint64_t(item.bones.size()) * sizeof(float) : 0u;
+      bool newly_reserved = false;
+      fade_uniform = &fade_uniforms.Reserve(
+          &item, g_r.bone_ring_offset, palette_bytes,
+          RendererState::kBoneRegionSize, &newly_reserved);
+      if (!fade_uniform->valid) {
+        // Cache failure too: never establish depth without the matching
+        // color pass, or draw either pass with a different fallback pose.
+        cmd->SetConstantBuffer(9, g_r.bone_ring, bone_region);
+        return;
+      }
+      if (newly_reserved && palette_bytes != 0) {
+        std::memcpy(g_r.bone_ring_cpu + bone_region + fade_uniform->bone_offset,
+                    item.bones.data(), size_t(palette_bytes));
+      }
+      if (item.skinned && !item.bones.empty()) {
+        cmd->SetBufferSrv(3, g_r.bone_ring, bone_region + fade_uniform->bone_offset);
+        bones_bound = true;
+      }
+    } else if (item.skinned && !item.bones.empty()) {
       const uint32_t bytes = uint32_t(item.bones.size() * sizeof(float));
       const uint32_t offset = (g_r.bone_ring_offset + 255u) & ~255u;
       if (offset + bytes <= RendererState::kBoneRegionSize) {
@@ -8882,19 +8904,24 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // char_rows[14*4+1] stays 0 when the capture failed validation, which
     // keeps the item on the legacy empirical shading.
     constants[39] = 0.0f;
-    if (debug_mode == 0 && item.char_family != 0 &&
-        item.char_rows[14 * 4 + 1] > 0.0f) {
-      const uint32_t offset = (g_r.bone_ring_offset + 255u) & ~255u;
-      // 18 float4 rows = 288 bytes -> a 512-byte slot keeps the next
-      // allocation 256-aligned (CBV offset requirement).
-      if (offset + 512u <= RendererState::kBoneRegionSize) {
-        std::memcpy(g_r.bone_ring_cpu + bone_region + offset, item.char_rows,
-                    sizeof(item.char_rows));
-        g_r.bone_ring_offset = offset + 512u;
-        cmd->SetConstantBuffer(9, g_r.bone_ring, bone_region + offset);
+    // Reset b2 for world and debug draws, including failed lighting reads.
+    cmd->SetConstantBuffer(9, g_r.bone_ring, bone_region);
+    const bool character_lighting = debug_mode == 0 && item.char_family != 0 &&
+                                    item.char_rows[14 * 4 + 1] > 0.0f;
+    if (character_lighting || body_fade.eligible) {
+      const uint32_t offset = fade_uniform != nullptr
+          ? fade_uniform->char_offset : (g_r.bone_ring_offset + 255u) & ~255u;
+      if (offset + 512u > RendererState::kBoneRegionSize) return;
+      float* rows = reinterpret_cast<float*>(g_r.bone_ring_cpu + bone_region + offset);
+      std::fill_n(rows, 76, 0.0f);
+      if (character_lighting) {
+        std::memcpy(rows, item.char_rows, sizeof(item.char_rows));
         constants[39] = item.char_rows[14 * 4 + 1];
         g_char_drawn.fetch_add(1, std::memory_order_relaxed);
       }
+      WriteCharacterBodyFadeOverride(body_fade, rows + 72);
+      if (fade_uniform == nullptr) g_r.bone_ring_offset = offset + 512u;
+      cmd->SetConstantBuffer(9, g_r.bone_ring, bone_region + offset);
     }
     // cam_pos.w = -family selects the exact world-material branch. Gated on
     // the frame rows being captured (scene.shadow_valid carries the scene
@@ -9508,7 +9535,10 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // from the ring (evicted / decode in flight) renormalize over what IS
     // present when at least half the kernel's weight survives.
     VbBinding item_vbv = buffers.vb_view;
-    if (item.ropa && item.shape_count > 0 &&
+    const auto prepared_fade_vb = fade_ropa_bindings.find(&item);
+    if (shared_body_uniforms && prepared_fade_vb != fade_ropa_bindings.end()) {
+      item_vbv = prepared_fade_vb->second;
+    } else if (item.ropa && item.shape_count > 0 &&
         REXCVAR_GET(skate3_native_render_scene_ropa_blend)) {
       const std::vector<float>* gv[DrawItem::kShapeGens] = {};
       float gw[DrawItem::kShapeGens] = {};
@@ -9615,6 +9645,8 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
         }
       }
     }
+    // The visibility and color passes bind the same cloth upload.
+    if (shared_body_uniforms && item.ropa) fade_ropa_bindings.try_emplace(&item, item_vbv);
     cmd->SetVertexBuffer(item_vbv.buffer, item_vbv.offset, item_vbv.size_bytes,
                          item_vbv.stride);
     cmd->SetIndexBuffer(buffers.ib_view.buffer, buffers.ib_view.offset,
@@ -9760,17 +9792,13 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     return d2;
   };
   std::vector<const DrawItem*> transparent_items;
-  // Mid-fade entity items (see CharFadeAlpha / pso_fade): blended but with
-  // z-write ON, drawn at the HEAD of the blended sub-pass; they behave like
-  // main-pass objects whose glass/hair still composites over them, and depth
-  // writes stop their own overlapping pieces (skin under clothes, far-side
-  // doors/wheels through the body shell) from double-blending into an x-ray.
-  const auto char_fade_zwrite = [&](const DrawItem& it) {
-    return debug_mode == 0 && it.char_rows[14 * 4 + 1] > 0.0f &&
-           (it.char_family == 1 || it.char_family == 2 ||
-            it.char_family == 3 || it.char_family == 6) &&
-           REXCVAR_GET(skate3_native_render_scene_entity_fade) &&
-           CharFadeAlpha(it) < 0.999f;
+  // Solid body opacity uses shared visibility; hair and glass remain sorted.
+  const auto char_fade_body = [&](const DrawItem& it) {
+    const auto fade = ResolveCharacterBodyFade(
+        it.char_family, it.char_alpha, it.lw_alpha,
+        it.char_rows[14 * 4 + 1], it.char_rows[14 * 4],
+        debug_mode == 0 && REXCVAR_GET(skate3_native_render_scene_entity_fade));
+    return fade.eligible && fade.opacity < 0.999f;
   };
   // Occlusion cull: statics provably hidden behind already-rendered
   // geometry skip the color pass entirely (every scene.items consumer that
@@ -9967,7 +9995,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       }
       continue;
     }
-    const bool char_fade_blend = char_fade_zwrite(item) && !fade_blink;
+    const bool char_fade_blend = char_fade_body(item) && !fade_blink;
     // environment.reflective_trans (fam 13): blended glass canopies, joins
     // the sorted alpha sub-pass whenever its exact branch is live (same
     // shadow_valid gate as cam_pos.w = -fam; the legacy fallback renders it
@@ -10045,16 +10073,25 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     std::stable_sort(opaque_items.begin(), opaque_items.end(),
                      [](const auto& a, const auto& b) { return a.first < b.first; });
   }
+  opaque_scene_pass = true;
   for (const auto& [dist, item] : opaque_items) {
     timed_draw(*item);
   }
+  opaque_scene_pass = false;
   if (!transparent_items.empty() && g_r.pso_transparent != nullptr) {
+    const bool fade_visibility = use_depth && g_r.pso_fade_depth != nullptr &&
+                                 g_r.pso_fade != nullptr;
+    if (fade_visibility) {
+      cmd->SetPipeline(g_r.pso_fade_depth);
+      for (const DrawItem* item : transparent_items) {
+        if (char_fade_body(*item)) timed_draw(*item);
+      }
+    }
     std::stable_sort(transparent_items.begin(), transparent_items.end(),
                      [&](const DrawItem* a, const DrawItem* b) {
-                       // Fading entities (z-write blend) draw before every
-                       // z-write-off blend so hair/glass composite over them.
-                       const bool fa = char_fade_zwrite(*a);
-                       const bool fb = char_fade_zwrite(*b);
+                       // Body visibility is complete; hair and glass composite afterward.
+                       const bool fa = char_fade_body(*a);
+                       const bool fb = char_fade_body(*b);
                        if (fa != fb) {
                          return fa;
                        }
@@ -10063,8 +10100,8 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     cmd->SetPipeline(use_depth ? g_r.pso_transparent : g_r.pso_nodepth);
     nrhi::Pipeline* blend_bound = use_depth ? g_r.pso_transparent : g_r.pso_nodepth;
     for (const DrawItem* item : transparent_items) {
-      // Mid-fade entity pieces: alpha blend with z-write ON (see pso_fade).
-      if (use_depth && g_r.pso_fade != nullptr && char_fade_zwrite(*item)) {
+      // Blend only samples at the established nearest body surface.
+      if (fade_visibility && char_fade_body(*item)) {
         if (blend_bound != g_r.pso_fade) {
           cmd->SetPipeline(g_r.pso_fade);
           blend_bound = g_r.pso_fade;
