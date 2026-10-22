@@ -1,0 +1,14 @@
+# Steam Deck settings for Skate 3 Recomp.
+# Copy this file next to the skate3 executable as skate3.toml.
+
+# Present with standard vsync (FIFO). The default prefers the tearing
+# IMMEDIATE mode, which a Wayland compositor such as the Deck's does not
+# present cleanly.
+vulkan_allow_present_mode_immediate = false
+vulkan_allow_present_mode_mailbox = false
+vulkan_allow_present_mode_fifo_relaxed = false
+
+# Never skip presenting a frame that used a still-compiling pipeline. A skipped
+# present leaves the game waiting for a present that never comes, so the
+# picture freezes while the game keeps running.
+vulkan_async_skip_incomplete_frames = false
