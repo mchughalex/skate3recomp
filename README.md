@@ -56,6 +56,10 @@ Notes:
 6. Wait for the installer to extract the game files.
 7. Click "Start Game".
 
+### Steam Deck
+
+See [steamdeck/README.md](steamdeck/README.md) for a launcher and settings that make the Linux build behave well on the Deck in Game Mode and Desktop Mode.
+
 ## Native Renderer
 
 Since v2.0.0 the game no longer relies on emulating the Xbox 360 GPU. A native renderer draws the game directly through Direct3D 12 or Vulkan, covering the entire game: gameplay, menus, HUD, loading screens, videos, and the photo, replay, skater, and park editors. It runs exact ports of the game's own material shading for the world, characters, vehicles, and water, so the image stays at close visual parity with the original console output while running far faster and more efficiently.
@@ -194,13 +198,17 @@ sudo apt install -y \
   clang-20 lld-20 \
   libgtk-3-dev libx11-xcb-dev \
   libvulkan-dev vulkan-tools mesa-vulkan-drivers \
-  libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev
+  libasound2-dev libpulse-dev libpipewire-0.3-dev libudev-dev libusb-1.0-0-dev
 ```
 
-Optional packages improve controller/input and diagnostics coverage in SDL:
+`libudev-dev` and `libusb-1.0-0-dev` must be installed before the first
+configure: without them the bundled SDL is built with no udev or hidapi backend
+and sees no controller at all (on a Steam Deck, not even the built-in one).
+
+Optional packages improve diagnostics coverage in SDL:
 
 ```sh
-sudo apt install -y libusb-1.0-0-dev libunwind-dev libibus-1.0-dev liburing-dev
+sudo apt install -y libunwind-dev libibus-1.0-dev liburing-dev
 ```
 
 Initialize submodules as described above, then configure, generate,
