@@ -5,7 +5,7 @@ name = "skate3"
 [entrypoint]
 file_path = "@SKATE3_GAME_DATA_ROOT_CONFIG@/default.xex"
 @SKATE3_PATCHED_DEFAULT_XEX_LINE@
-out_directory_path = "@SKATE3_SOURCE_DIR_CONFIG@/generated"
+out_directory_path = "@SKATE3_GENERATED_ROOT_CONFIG@"
 includes = [
 @SKATE3_FUNCTION_CONFIG_INCLUDES@
 ]

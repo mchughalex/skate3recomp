@@ -26,7 +26,7 @@
 // reads g_shadow_have; OnCaptureFrameEnd runs on the same thread).
 #include "skate3_native_scene_state.h"
 
-#include "generated/skate3_init.h"
+#include "skate3_init.h"
 #include "skate3_screenshot.h"
 
 #if defined(_WIN32)

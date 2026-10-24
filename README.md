@@ -136,6 +136,11 @@ The build-time codegen needs an extracted game dump containing `default.xex` and
 `data/webkit/EAWebkit.xex`. Put that dump in `game/`, or pass a path with
 `SKATE3_GAME_DATA_ROOT`.
 
+Generated sources default to `generated/` in the source tree. To keep them
+elsewhere, configure with `-DSKATE3_GENERATED_ROOT="/path/to/compiled sources"`.
+Both codegen modules, post-codegen patches and the subsequent build use that
+directory. Reconfigure after `generate-all` so CMake reads the new source lists.
+
 The codegen should also be given the Skate 3 Title Update 3 package - the same
 `TU_12K2276_000000C000000.00000000000O3` file the in-game title update
 installer downloads. Place it in the repository root under its original name,

@@ -1,6 +1,6 @@
 #include "skate3_demo_path.h"
 
-#include "generated/skate3_init.h"
+#include "skate3_init.h"
 
 #include <atomic>
 #include <chrono>

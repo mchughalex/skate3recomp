@@ -6,7 +6,7 @@
 #include "skate3_native_debug_dialog.h"
 #include "skate3_native_scene.h"
 
-#include "generated/skate3_init.h"
+#include "skate3_init.h"
 
 #include <array>
 #include <atomic>

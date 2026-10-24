@@ -1,6 +1,6 @@
 #pragma once
 
-#include "generated/skate3_init.h"
+#include "skate3_init.h"
 
 #include <atomic>
 #include <filesystem>

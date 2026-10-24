@@ -86,6 +86,9 @@ set(REXSDK_DIR
 set(SKATE3_GAME_DATA_ROOT
     "${CMAKE_CURRENT_SOURCE_DIR}/game"
     CACHE PATH "Path to an extracted Skate 3 retail game dump")
+set(SKATE3_GENERATED_ROOT
+    "${CMAKE_CURRENT_SOURCE_DIR}/generated"
+    CACHE PATH "Path to generated Skate 3 and EAWebkit sources")
 set(SKATE3_TITLE_UPDATE_PACKAGE
     ""
     CACHE FILEPATH "Optional Skate 3 title update STFS package used for codegen")
@@ -138,6 +141,7 @@ endif()
 
 file(TO_CMAKE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" SKATE3_SOURCE_DIR_CONFIG)
 file(TO_CMAKE_PATH "${SKATE3_GAME_DATA_ROOT}" SKATE3_GAME_DATA_ROOT_CONFIG)
+file(TO_CMAKE_PATH "${SKATE3_GENERATED_ROOT}" SKATE3_GENERATED_ROOT_CONFIG)
 
 set(SKATE3_EFFECTIVE_TITLE_UPDATE_PACKAGE "${SKATE3_TITLE_UPDATE_PACKAGE}")
 if(SKATE3_EFFECTIVE_TITLE_UPDATE_PACKAGE STREQUAL "")
@@ -335,23 +339,23 @@ else()
     target_compile_definitions(skate3 PRIVATE SKATE3_HAS_TITLE_UPDATE=0)
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/sources.cmake")
-    include(generated/sources.cmake)
+if(EXISTS "${SKATE3_GENERATED_ROOT}/sources.cmake")
+    include("${SKATE3_GENERATED_ROOT}/sources.cmake")
     target_sources(skate3 PRIVATE ${GENERATED_SOURCES})
-    target_include_directories(skate3 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/generated)
+    target_include_directories(skate3 PRIVATE "${SKATE3_GENERATED_ROOT}")
 else()
-    message(STATUS "generated/sources.cmake not found; run the generate-all target before building skate3")
+    message(STATUS "${SKATE3_GENERATED_ROOT}/sources.cmake not found; run the generate-all target before building skate3")
 endif()
 
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/generated/eawebkit/sources.cmake")
+if(EXISTS "${SKATE3_GENERATED_ROOT}/eawebkit/sources.cmake")
     set(_SKATE3_SAVED_GENERATED_SOURCES ${GENERATED_SOURCES})
-    include(generated/eawebkit/sources.cmake)
+    include("${SKATE3_GENERATED_ROOT}/eawebkit/sources.cmake")
     target_sources(skate3 PRIVATE ${GENERATED_SOURCES})
-    target_include_directories(skate3 PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/generated/eawebkit)
+    target_include_directories(skate3 PRIVATE "${SKATE3_GENERATED_ROOT}/eawebkit")
     set(GENERATED_SOURCES ${_SKATE3_SAVED_GENERATED_SOURCES})
     unset(_SKATE3_SAVED_GENERATED_SOURCES)
 else()
-    message(STATUS "generated/eawebkit/sources.cmake not found; run the generate-all target before building skate3")
+    message(STATUS "${SKATE3_GENERATED_ROOT}/eawebkit/sources.cmake not found; run the generate-all target before building skate3")
 endif()
 
 target_link_libraries(skate3 PRIVATE rex::runtime)

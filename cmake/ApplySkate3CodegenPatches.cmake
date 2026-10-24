@@ -2,11 +2,15 @@ if(NOT DEFINED SKATE3_SOURCE_DIR)
   message(FATAL_ERROR "SKATE3_SOURCE_DIR is required")
 endif()
 
+if(NOT DEFINED SKATE3_GENERATED_ROOT)
+  set(SKATE3_GENERATED_ROOT "${SKATE3_SOURCE_DIR}/generated")
+endif()
+
 file(GLOB _skate3_recomp_files
   LIST_DIRECTORIES false
-  "${SKATE3_SOURCE_DIR}/generated/skate3_recomp.*.cpp")
+  "${SKATE3_GENERATED_ROOT}/skate3_recomp.*.cpp")
 if(NOT _skate3_recomp_files)
-  message(FATAL_ERROR "No generated Skate 3 recompilation files found")
+  message(FATAL_ERROR "No generated Skate 3 recompilation files found in ${SKATE3_GENERATED_ROOT}")
 endif()
 
 function(_skate3_add_include _contents_var _include)

@@ -5,7 +5,7 @@ name = "eawebkit"
 [entrypoint]
 file_path = "@SKATE3_GAME_DATA_ROOT_CONFIG@/data/webkit/EAWebkit.xex"
 @SKATE3_PATCHED_EAWEBKIT_XEX_LINE@
-out_directory_path = "@SKATE3_SOURCE_DIR_CONFIG@/generated/eawebkit"
+out_directory_path = "@SKATE3_GENERATED_ROOT_CONFIG@/eawebkit"
 includes = [
   "@SKATE3_SOURCE_DIR_CONFIG@/config/eawebkit_functions.toml",
 ]

@@ -6,7 +6,7 @@
 #include <cmath>
 #include <cstring>
 
-#include "generated/skate3_init.h"
+#include "skate3_init.h"
 
 #if defined(_WIN32)
 #include <windows.h>

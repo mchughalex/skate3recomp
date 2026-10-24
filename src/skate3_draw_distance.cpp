@@ -34,7 +34,7 @@
 // GetLODDistancesFromAttrib hook (the view's cull object is at view+8) so
 // cvar changes take effect without a config reload.
 
-#include "generated/skate3_init.h"
+#include "skate3_init.h"
 #include "native/skate3_native_guest_read.h"
 #include "skate3_demo_path.h"
 #include "skate3_native_scene.h"
