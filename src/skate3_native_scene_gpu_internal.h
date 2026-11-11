@@ -833,6 +833,10 @@ struct RendererState {
   // no z-write): darken = straight alpha, default = additive glow.
   nrhi::Pipeline* pso_spline_darken = nullptr;
   nrhi::Pipeline* pso_spline_default = nullptr;
+  // HDR layer: gamma RGB plus accumulated darken coverage in alpha.
+  nrhi::Pipeline* pso_spline_composite = nullptr;
+  nrhi::Texture* spline_layer = nullptr;
+  nrhi::TextureView* spline_layer_srv = nullptr;
   // Dynamic CSM shadows: casters render
   // into a 3-tile (depth, coverage) atlas with MIN blend (depth clear 1,
   // "uncoverage" clear 1 -> covered texels write 0), then the game's exact

@@ -172,6 +172,8 @@ REXCVAR_DECLARE(std::string, skate3_native_render_snapshot_dir);
 namespace skate3::native_scene {
 namespace {
 
+constexpr nrhi::Format kSplineLayerFormat = nrhi::Format::kR16G16B16A16_FLOAT;
+
 // Retire a guest texture's GPU resources AND its view. Destruction is
 // deferred inside the RHI against the CURRENT submission; the `submission`
 // parameter is kept for call-site compatibility and ignored.
@@ -3160,9 +3162,10 @@ bool EnsureSplinePsos(const NativeGuestOutputRenderContext& context) {
     // In-world spline pipelines: drawn inside the scene pass (MSAA sample
     // count, depth test LESS_EQUAL, no z-write) with the game's own blend
     // states (spline.xml): darken = straight alpha, default = additive.
-    // Under HDR the pixel shaders encode through the tone chain's inverse
-    // (SplineOut) so the host tonemap restores the authored look.
-    for (nrhi::Pipeline** p : {&g_r.pso_spline_darken, &g_r.pso_spline_default}) {
+    // HDR accumulates gamma-space colour and darken coverage separately
+    // from scene lighting, then composites after tone mapping.
+    for (nrhi::Pipeline** p : {&g_r.pso_spline_darken, &g_r.pso_spline_default,
+                              &g_r.pso_spline_composite}) {
       if (*p != nullptr) {
         device->DestroyDeferred(*p);
         *p = nullptr;
@@ -3216,7 +3219,7 @@ bool EnsureSplinePsos(const NativeGuestOutputRenderContext& context) {
     sp.input_elements = input_spline;
     sp.input_element_count = 3;
     sp.vertex_stride = 28;
-    sp.rtv_format = g_r.hdr_active ? g_r.hdr_scene_format
+    sp.rtv_format = g_r.hdr_active ? kSplineLayerFormat
                                    : context.guest_output->format();
     sp.dsv_format = nrhi::Format::kD32_FLOAT;
     sp.sample_count = g_r.msaa;
@@ -3227,14 +3230,16 @@ bool EnsureSplinePsos(const NativeGuestOutputRenderContext& context) {
     sp.ps = spk;
     sp.blend.src = nrhi::BlendFactor::kSrcAlpha;
     sp.blend.dst = nrhi::BlendFactor::kInvSrcAlpha;
-    sp.blend.src_alpha = nrhi::BlendFactor::kSrcAlpha;
+    sp.blend.src_alpha = g_r.hdr_active ? nrhi::BlendFactor::kOne
+                                       : nrhi::BlendFactor::kSrcAlpha;
     sp.blend.dst_alpha = nrhi::BlendFactor::kInvSrcAlpha;
     g_r.pso_spline_darken = device->CreateGraphicsPipeline(sp);
     // default pass: additive glow.
     sp.ps = spd;
     sp.blend.src = nrhi::BlendFactor::kOne;
     sp.blend.dst = nrhi::BlendFactor::kOne;
-    sp.blend.src_alpha = nrhi::BlendFactor::kOne;
+    sp.blend.src_alpha = g_r.hdr_active ? nrhi::BlendFactor::kZero
+                                       : nrhi::BlendFactor::kOne;
     sp.blend.dst_alpha = nrhi::BlendFactor::kOne;
     g_r.pso_spline_default = device->CreateGraphicsPipeline(sp);
     device->DestroyDeferred(svs);
@@ -3245,6 +3250,72 @@ bool EnsureSplinePsos(const NativeGuestOutputRenderContext& context) {
       g_r.failed = true;
       return false;
     }
+    if (g_r.hdr_active) {
+      const std::string samples = std::to_string(g_r.msaa);
+      const std::string variant = "SAMPLES=" + samples;
+      const nrhi::ShaderMacro defs[] = {{"SAMPLES", samples.c_str()}, {nullptr, nullptr}};
+      nrhi::Shader* cvs = device->CreateShader(
+          MakeShaderDesc(nrhi::ShaderStage::kVertex, "outline.hlsl",
+                         kOutlineShaderSource, "vs_main", nullptr, ""));
+      nrhi::Shader* cps = device->CreateShader(
+          MakeShaderDesc(nrhi::ShaderStage::kPixel, "spline.hlsl",
+                         kShaderSplineSource, "ps_composite", defs, variant.c_str()));
+      if (cvs == nullptr || cps == nullptr) {
+        if (cvs != nullptr) device->DestroyDeferred(cvs);
+        if (cps != nullptr) device->DestroyDeferred(cps);
+        REXLOG_ERROR("native-scene: spline composite shader compile failed");
+        g_r.failed = true;
+        return false;
+      }
+      nrhi::GraphicsPipelineDesc cp;
+      cp.layout = g_r.layout;
+      cp.vs = cvs;
+      cp.ps = cps;
+      cp.rtv_format = context.guest_output->format();
+      cp.cull = nrhi::CullMode::kNone;
+      cp.blend.enable = true;
+      cp.blend.src = nrhi::BlendFactor::kOne;
+      cp.blend.dst = nrhi::BlendFactor::kInvSrcAlpha;
+      cp.blend.src_alpha = nrhi::BlendFactor::kZero;
+      cp.blend.dst_alpha = nrhi::BlendFactor::kOne;
+      g_r.pso_spline_composite = device->CreateGraphicsPipeline(cp);
+      device->DestroyDeferred(cvs);
+      device->DestroyDeferred(cps);
+      if (g_r.pso_spline_composite == nullptr) {
+        REXLOG_ERROR("native-scene: spline composite PSO creation failed");
+        g_r.failed = true;
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+bool EnsureSplineLayer(const NativeGuestOutputRenderContext& context) {
+  if (g_r.spline_layer_srv != nullptr) {
+    return true;
+  }
+  nrhi::TextureDesc desc;
+  desc.width = context.guest_output_width;
+  desc.height = context.guest_output_height;
+  desc.format = kSplineLayerFormat;
+  desc.sample_count = g_r.msaa;
+  desc.usage = nrhi::kTextureUsageRenderTarget;
+  desc.initial_state = nrhi::ResourceState::kRenderTarget;
+  g_r.spline_layer = context.device->CreateTexture(desc);
+  if (g_r.spline_layer != nullptr) {
+    nrhi::TextureViewDesc vd;
+    vd.dimension = g_r.msaa > 1 ? nrhi::ViewDimension::k2DMS : nrhi::ViewDimension::k2D;
+    g_r.spline_layer_srv = context.device->CreateTextureView(g_r.spline_layer, vd);
+  }
+  if (g_r.spline_layer_srv == nullptr) {
+    if (g_r.spline_layer != nullptr) {
+      context.device->DestroyDeferred(g_r.spline_layer);
+      g_r.spline_layer = nullptr;
+    }
+    REXLOG_ERROR("native-scene: spline layer creation failed");
+    g_r.failed = true;
+    return false;
   }
   return true;
 }
@@ -4000,6 +4071,14 @@ bool EnsureOutputSizedTargets(const NativeGuestOutputRenderContext& context) {
       g_r.targets_hdr != g_r.hdr_active ||
       g_r.targets_scene_fmt != want_scene_fmt ||
       g_r.targets_msaa != g_r.msaa) {
+    if (g_r.spline_layer_srv != nullptr) {
+      device->DestroyDeferred(g_r.spline_layer_srv);
+      g_r.spline_layer_srv = nullptr;
+    }
+    if (g_r.spline_layer != nullptr) {
+      device->DestroyDeferred(g_r.spline_layer);
+      g_r.spline_layer = nullptr;
+    }
     if (g_r.depth) {
       // The AO/SSR/volumetric scene-depth SRVs alias this texture and
       // re-point on pointer identity; heap reuse can hand the NEW depth
@@ -10339,9 +10418,8 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       uint32_t(frame_number % RendererState::kUiRegions) * RendererState::kUiRegionSize;
   uint32_t ui_offset = 0;
 
-  // In-world neon splines (waypoint arrows / marker beams): replayed inside
-  // the scene pass, depth-tested against the world like the emulated frame,
-  // in submission order (darken backdrop passes precede the additive glow).
+  // Splines retain world depth/MSAA and guest draw order. HDR keeps their
+  // gamma-space blends in a separate layer until the scene is tone mapped.
   uint32_t drawn_spline = 0;
   if (REXCVAR_GET(skate3_native_render_scene_splines) &&
       g_r.pso_spline_default != nullptr && g_r.ui_ring_cpu != nullptr) {
@@ -10349,6 +10427,14 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     {
       std::lock_guard<std::mutex> lock(g_2d_mutex);
       scene_spline = g_scene_spline;
+    }
+    if (hdr_on && !scene_spline.empty()) {
+      if (!EnsureSplineLayer(context)) {
+        return false;
+      }
+      const float clear[4] = {};
+      cmd->ClearRenderTarget(g_r.spline_layer, clear);
+      cmd->SetRenderTargets(g_r.spline_layer, use_depth ? g_r.depth : nullptr);
     }
     for (const SplineDraw& s : scene_spline) {
       const uint32_t bytes = uint32_t(s.verts.size());
@@ -10385,6 +10471,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       cmd->Draw(s.count, 0);
       ui_offset += bytes;
       ++drawn_spline;
+    }
+    if (hdr_on && !scene_spline.empty()) {
+      cmd->SetRenderTargets(scene_color, use_depth ? g_r.depth : nullptr);
     }
   }
 
@@ -10560,6 +10649,19 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
   if (outline_ready && hdr_on) {
     RenderOutlineComposite(context, scene, context.guest_output, viewport,
                            scissor);
+  }
+
+  if (hdr_on && drawn_spline != 0) {
+    cmd->Barrier(g_r.spline_layer, nrhi::ResourceState::kRenderTarget,
+                 nrhi::ResourceState::kPixelShaderResource);
+    cmd->FlushBarriers();
+    cmd->SetRenderTargets(context.guest_output, nullptr);
+    cmd->SetPipeline(g_r.pso_spline_composite);
+    cmd->SetTexture(1, g_r.spline_layer_srv);
+    cmd->SetPrimitiveTopology(nrhi::PrimitiveTopology::kTriangleList);
+    cmd->Draw(3, 0);
+    cmd->Barrier(g_r.spline_layer, nrhi::ResourceState::kPixelShaderResource,
+                 nrhi::ResourceState::kRenderTarget);
   }
 
   // ---- Photo-editor postfx chain (photo_fx.hlsl: exact ucode ports) ----
