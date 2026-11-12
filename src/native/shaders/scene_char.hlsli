@@ -1,3 +1,22 @@
+float HairWorldShadow(float3 wp) {
+  if (overlay.w < 0.5) return 1.0;
+
+  const int kHairShadowSize = 512;
+  float4 p = float4(wp, 1.0);
+  float2 uv = float2(dot(p, ch_sh[0]) * 0.5 + 0.5,
+                     dot(p, ch_sh[1]) * -0.5 + 0.5);
+  float depth = dot(p, ch_sh[2]);
+  float2 st = uv * kHairShadowSize - 0.5;
+  int2 base = int2(floor(st));
+  float4 taps;
+  taps.x = normal_map.Load(int3(clamp(base, 0, kHairShadowSize - 1), 0)).x >= depth;
+  taps.y = normal_map.Load(int3(clamp(base + int2(1, 0), 0, kHairShadowSize - 1), 0)).x >= depth;
+  taps.z = normal_map.Load(int3(clamp(base + int2(0, 1), 0, kHairShadowSize - 1), 0)).x >= depth;
+  taps.w = normal_map.Load(int3(clamp(base + int2(1, 1), 0, kHairShadowSize - 1), 0)).x >= depth;
+  float2 f = frac(st);
+  return lerp(lerp(taps.x, taps.y, f.x), lerp(taps.z, taps.w, f.x), f.y);
+}
+
 // Character families: the game's own lighting in LINEAR space (diffuse is
 // gamma -> square it), then the exact tone chain from the disassembly and
 // the postfx uber's 1.41 scene multiplier (which the empirical world
@@ -73,15 +92,27 @@ float4 ShadeCharacter(VSOut i, float4 albedo) {
           (spec * ch_sh[0].rgb + cube) * fres * gloss;
     out_a = ch_misc.x;
   } else if (fam > 3.5) {
-    // Hair (cac_hair / defaulthair): key on a wrapped N.L ramp + flat
-    // ambient, fresnel rim tint on a steeper ramp; strand coverage from
-    // the mesh's "alpha" channel at the raw second texcoord (bound at t4)
-    // - alpha-blended in the sorted sub-pass (hair drawn opaque is the
-    // blocky-helmet look).
-    float fres = pow(1.0 - saturate(dot(cn, vd)), max(ch_light.w, 1.0));
-    float3 hl = ch_key.rgb * (saturate(ndl * 0.75 + 0.25) + ch_amb.w) +
-                ch_tintB.rgb * fres * saturate(ndl * 1.75 + 0.25);
-    lin = dlin * hl;
+    float3 ht = i.hair_tangent, hb = i.tanb.xyz;
+    float3 hn = i.nrm;
+    if (i.tanb.w < 0.5) {
+      ScreenTangentFrame(cn, i.rpos, i.uv, ht, hb);
+      hn = cn;
+    }
+    float2 nm = overlay.z > 0.5
+                    ? macro.SampleBias(smp, i.uv, misc.y).ag * 2.0 - 1.0
+                    : float2(0.0, 0.0);
+    float3 mapped = normalize(nm.x * ht + nm.y * hb +
+                              sqrt(abs(1.0 - dot(nm, nm))) * hn);
+    // Hair uses the baked world map, with the material's own shadow floor.
+    float shadow = max(HairWorldShadow(i.rpos + cam_pos.xyz), ch_tintA.w);
+    if (fam < 4.5) {
+      lin = CacHairLight(dlin, mapped, ht, vd, ch_light.xyz, shadow,
+                        ch_amb.w, ch_key.rgb, ch_tintB.rgb, ch_light.w);
+    } else {
+      lin = DefaultHairLight(albedo * albedo, mapped, vd, ch_light.xyz,
+                            shadow, ch_amb.w, float4(ch_key.rgb, ch_rim.w),
+                            ch_ks, ch_rs, ch_rim.rgb, ch_misc.w, ch_tintA.x);
+    }
     out_a = saturate(decal_art.Sample(smp, i.uv2).r * ch_tintB.w);
   } else if (fam > 2.5) {
     // livingworld pedestrians: the diffuse is a stamp-mask atlas; red
