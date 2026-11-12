@@ -62,6 +62,7 @@
 // Cvars defined in skate3_native_scene.cpp (and SDK cvars re-declared there).
 REXCVAR_DECLARE(bool, async_shader_compilation);
 REXCVAR_DECLARE(bool, native_render_suppress_emulated_draws);
+REXCVAR_DECLARE(int32_t, native_render_targeted_readback_min_interval_ms);
 REXCVAR_DECLARE(bool, readback_resolve_half_pixel_offset);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_2d);
 REXCVAR_DECLARE(bool, skate3_native_render_scene_backface_cull);
@@ -5076,6 +5077,51 @@ bool g_loading_native_frame = false;
 // loading screen, so yielding there would flash the stale pre-load frame.
 bool g_loading_hold = false;
 
+bool PortraitMenuActive() {
+  constexpr uint32_t kFrontEndManagerPtr = 0x830CFE14;
+  constexpr uint32_t kTeamScreen = 63;
+  constexpr uint32_t kNewTeamScreen = 67;
+  constexpr uint32_t kImportScreen = 68;
+  constexpr uint32_t kStackEntrySize = 20;
+  uint8_t* base = g_guest_base.load(std::memory_order_relaxed);
+  uint32_t mgr = 0, beg = 0, end = 0, screen = 0;
+
+  if (base == nullptr ||
+      !GuestTryLoadU32(base, kFrontEndManagerPtr, &mgr) || mgr == 0 ||
+      !GuestTryLoadU32(base, mgr + 0x210, &beg) ||
+      !GuestTryLoadU32(base, mgr + 0x214, &end) || beg >= end ||
+      end - beg > kStackEntrySize * 16 ||
+      (end - beg) % kStackEntrySize != 0 ||
+      !GuestTryLoadU32(base, end - kStackEntrySize, &screen)) {
+    return false;
+  }
+
+  return screen == kTeamScreen || screen == kNewTeamScreen ||
+         screen == kImportScreen;
+}
+
+void UpdatePortraitReadback() {
+  // Portraits CPU-encode one-shot resolves. Throttling can skip their final
+  // frame and cache a blank image until the preset is regenerated.
+  static bool s_readback_forced = false;
+  static int32_t s_readback_saved = 0;
+  const bool portrait_menu =
+      rex::kernel::guest_presence::GameplayContextValue() == 0 &&
+      PortraitMenuActive();
+
+  if (portrait_menu && !s_readback_forced) {
+    s_readback_saved = REXCVAR_GET(native_render_targeted_readback_min_interval_ms);
+    REXCVAR_SET(native_render_targeted_readback_min_interval_ms, 0);
+    s_readback_forced = true;
+    REXLOG_INFO("native-scene: portrait readback throttle disabled");
+  } else if (!portrait_menu && s_readback_forced) {
+    REXCVAR_SET(native_render_targeted_readback_min_interval_ms, s_readback_saved);
+    s_readback_forced = false;
+    REXLOG_INFO("native-scene: portrait readback throttle restored ({} ms)",
+                s_readback_saved);
+  }
+}
+
 // Menus / pause / loading yield gate (see the comment at the call site):
 // returns true when RenderScene must yield this frame to the emulated
 // output. Handles the cache clears on entry and the takeover re-arm +
@@ -5092,6 +5138,7 @@ bool YieldForMenus(const NativeGuestOutputRenderContext& context) {
   // in-place rewrites of UI textures (the one-shot skater-portrait resolves)
   // heal within a couple of frames instead of up to 16.
   g_in_menus_frame.store(in_menus, std::memory_order_relaxed);
+
   if (!in_menus) {
     s_seen_gameplay = true;
   }
@@ -7535,6 +7582,7 @@ void AddGuestOcclSkipped(uint32_t n) {
 namespace {
 
 bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_data*/) {
+  UpdatePortraitReadback();
   if (!SceneEnabled() ||
       (context.backend != NativeGuestOutputBackend::kD3D12 &&
        context.backend != NativeGuestOutputBackend::kVulkan)) {
