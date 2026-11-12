@@ -37,18 +37,15 @@ VSOut vs_main(float4 p : POSITION, float2 uv : TEXCOORD0, float fade : TEXCOORD1
 // Getting this wrong is visible: a linear 1/a over-brightens the low-alpha
 // glow fringe (fuzzy, blown-out edges) and a linear darken alpha weakens the
 // backdrop dimming that makes the neon read as solid.
-// HDR=1: the scene target holds the tone chain's pre-tonemap input (see
-// scene.hlsl ToneOut), so the gamma-authored spline colors encode through
-// the chain's exact inverse before blending; the host tonemap pass then
-// restores them (and the neon glow feeds bloom).
+// The guest blends these gamma values after material tone mapping, then
+// postfxuber multiplies the scene by 1.41. HDR draws into a separate layer
+// so its darken/additive passes never blend with linear scene lighting.
+static const float kSceneMultiplier = 1.41;
 float3 SplineOut(float3 c) {
 #ifdef HDR
-  float3 tm = c * c * (2.0 / (1.41 * 1.41));
-  float3 lo = 1.0 - sqrt(saturate(1.0 - tm));
-  float3 hi = 4.0 * tm - 3.0;
-  return lerp(lo, hi, step(1.0, tm));  // per-channel select (fxc + dxc)
-#else
   return c;
+#else
+  return c * kSceneMultiplier;
 #endif
 }
 // Showcase blackout gate: the spline pass draws outside the scene shaders,
@@ -83,4 +80,25 @@ float4 ps_darken(VSOut i) : SV_Target {
   float3 rgb = sqrt(abs(c.rgb * c.rgb * intensity.y));
   float a = sqrt(abs(c.a * intensity.y * i.fade));
   return float4(SplineOut(rgb), a);
+}
+
+#ifndef SAMPLES
+#define SAMPLES 1
+#endif
+#if SAMPLES > 1
+Texture2DMS<float4> layer : register(t0);
+#endif
+float4 ps_composite(float4 pos : SV_Position) : SV_Target {
+#if SAMPLES > 1
+  float4 c = 0.0;
+  [unroll] for (int k = 0; k < SAMPLES; ++k) {
+    c += layer.Load(int2(pos.xy), k);
+  }
+  c /= SAMPLES;
+#else
+  float4 c = tex.Load(int3(pos.xy, 0));
+#endif
+  // RGB stores the accumulated premultiplied glow; alpha stores only the
+  // darken coverage. Resolve both before blending over the gamma scene.
+  return float4(c.rgb * kSceneMultiplier, c.a);
 }
