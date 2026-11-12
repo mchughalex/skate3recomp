@@ -45,9 +45,9 @@ cbuffer CH : register(b2) {
   float4 ch_light;  // xyz = sun direction, w = hair fresnel power
   float4 ch_key;    // rgb = key (sun) color, w = exposure
   float4 ch_amb;    // rgb = flat ambient, w = SH ambient multiplier / hair ambient
-  float4 ch_sh[9];  // SH irradiance rows, pre-scaled (see capture);
+  float4 ch_sh[9];  // SH irradiance; hair uses rows 0..2 for world shadows;
                     // vehicles keep spec color + power in row 0 instead
-  float4 ch_tintA;  // CAC diffuse tint / livingworld red-mask tint (w = apply)
+  float4 ch_tintA;  // CAC tint / livingworld red tint; hair multiplier x, shadow floor w
   float4 ch_tintB;  // livingworld blue-mask tint / hair fresnel tint (w = strand-alpha scale)
   float4 ch_misc;   // x = alpha out, y = family, z = lens-alpha flag,
                     // w = rim fresnel power
@@ -97,19 +97,30 @@ struct VSOut {
   // tangent handedness sign. Rides the static meshes' otherwise-unused
   // blend-weight bytes (see DecodeMesh).
   float4 tanb : TEXCOORD5;
+  float3 hair_tangent : TEXCOORD6;
 };
+float3 UnpackHairAxis(float packed) {
+  uint word = asuint(packed);
+  return float3(int(word << 21) >> 21, int(word << 10) >> 21,
+                int(word) >> 22) / float3(1023.0, 1023.0, 511.0);
+}
 VSOut vs_main(float3 p : POSITION, float2 uv : TEXCOORD0, float2 uv2 : TEXCOORD1,
               float4 bw : BLENDWEIGHT0, uint4 bi : BLENDINDICES0,
               float3 nrm : NORMAL0, float2 uv3 : TEXCOORD2) {
   VSOut o;
   float4 mp = float4(p, 1.0);
   float3 n = nrm;
+  // Hair has no decal UV. Its spare words retain the authored packed T/B.
+  bool hair_frame = cam_pos.w > 3.5 && cam_pos.w < 5.5;
+  float3 ht = hair_frame ? UnpackHairAxis(uv3.x) : 0.0;
+  float3 hb = hair_frame ? UnpackHairAxis(uv3.y) : 0.0;
   // tint.g > 0 marks a skinned item: the bone palette (row-vector matrices)
   // maps model space to world space; mvp is then just view*proj.
   float wsum = dot(bw, float4(1, 1, 1, 1));
   if (tint.g > 0.0 && wsum > 0.001) {
     float3 skinned = float3(0, 0, 0);
     float3 sn = float3(0, 0, 0);
+    float3 st = 0.0, sb = 0.0;
     // Guest blend indices are plain bone numbers (verified live: byte
     // streams like 02 00 03 01); bone k = palette rows 3k..3k+2.
     [unroll] for (int k = 0; k < 4; ++k) {
@@ -118,11 +129,19 @@ VSOut vs_main(float3 p : POSITION, float2 uv : TEXCOORD0, float2 uv2 : TEXCOORD1
                                 dot(mp, bones[row + 2]));
       sn += bw[k] * float3(dot(n, bones[row].xyz), dot(n, bones[row + 1].xyz),
                            dot(n, bones[row + 2].xyz));
+      st += bw[k] * float3(dot(ht, bones[row].xyz), dot(ht, bones[row + 1].xyz),
+                           dot(ht, bones[row + 2].xyz));
+      sb += bw[k] * float3(dot(hb, bones[row].xyz), dot(hb, bones[row + 1].xyz),
+                           dot(hb, bones[row + 2].xyz));
     }
     mp = float4(skinned / wsum, 1.0);
     n = sn;
+    ht = st;
+    hb = sb;
   } else {
     n = mul(n, (float3x3)world);
+    ht = mul(ht, (float3x3)world);
+    hb = mul(hb, (float3x3)world);
   }
   o.pos = mul(mp, mvp);
   o.rpos = mul(mp, world).xyz - cam_pos.xyz;
@@ -137,6 +156,12 @@ VSOut vs_main(float3 p : POSITION, float2 uv : TEXCOORD0, float2 uv2 : TEXCOORD1
   float3 sb = bw.xyz * 2.0 - 1.0;
   o.tanb = tint.g > 0.0 ? float4(0.0, 0.0, 0.0, 0.0)
                         : float4(mul(sb, (float3x3)world), bw.w);
+  o.hair_tangent = ht;
+  if (hair_frame && dot(ht, ht) > 0.01 && dot(hb, hb) > 0.01) {
+    // Ropa skins its authored N; ordinary hair derives N after skinning T/B.
+    o.nrm = mat_tint.w > 0.5 ? n : cross(ht, hb);
+    o.tanb = float4(hb, 1.0);
+  }
   return o;
 }
 // ---- Graphics build-up showcase -------------------------------------------
@@ -180,6 +205,7 @@ bool ShowcaseLayerOn(float px_x, int bit) {
 }
 #include "scene_shadows.hlsli"
 #include "scene_common.hlsli"
+#include "scene_hair.hlsli"
 #include "scene_char.hlsli"
 #include "scene_dynobj.hlsli"
 #include "scene_water.hlsli"

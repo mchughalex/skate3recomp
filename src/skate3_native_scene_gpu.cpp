@@ -1060,6 +1060,18 @@ bool DecodeMesh(nrhi::Device* device, uint8_t* base, const DrawItem& item,
     dst[v * 14 + 9] = n3[0];
     dst[v * 14 + 10] = n3[1];
     dst[v * 14 + 11] = n3[2];
+    if (item.char_family == 4 || item.char_family == 5) {
+      // Hair has two UV sets. Preserve its authored T/B in the spare pair;
+      // the scene VS skins these axes before evaluating strand highlights.
+      uint32_t axes[2] = {};
+      if (item.tb_fmt == 16) {
+        axes[0] = SwapU32(*reinterpret_cast<const uint32_t*>(
+            src_vb + size_t(v) * item.stride + item.tangent_offset));
+        axes[1] = SwapU32(*reinterpret_cast<const uint32_t*>(
+            src_vb + size_t(v) * item.stride + item.binormal_offset));
+      }
+      std::memcpy(dst + v * 14 + 12, axes, sizeof(axes));
+    }
   }
   // Dynobj v2 layout telemetry (first few meshes): which tangent-frame
   // source the props carry decides between the packed authored frame and
@@ -8917,6 +8929,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       g_dynobj_drawn.fetch_add(1, std::memory_order_relaxed);
     }
     std::memcpy(constants + 40, item.tint, 4 * sizeof(float));
+    if (constants[39] > 3.5f && constants[39] < 5.5f) {
+      constants[43] = item.ropa ? 1.0f : 0.0f;
+    }
     // t3 = macro grime/crack overlay, t4 = decal art for environment.decal
     // surfaces (in-shader composite). Independent slots: decal ground/wall
     // sections carry the same macrooverlay as their non-decal neighbors, and
@@ -8927,7 +8942,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
             ? resolve_texture(item.macro_tex, 2)
             : &g_r.white;
     if ((item.water || item.char_family >= 6 ||
-         (item.char_family >= 1 && item.char_family <= 2)) &&
+         (item.char_family >= 1 && item.char_family <= 5 && item.char_family != 3)) &&
         item.water_normal != 0) {
       // Water rides its ripple normal map in the macro slot (water never
       // carries a macro overlay; overlay.z stays 0 below so the macro
@@ -8937,7 +8952,7 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       // stops at the door seams (the exact PS with a FLAT map reproduces
       // that artifact; with the real map it matches the emulated car).
       // Character fams 1/2 (defaultcharacter / CAC skin, face, cloth,
-      // lenses) do the same with their DXT5nm `normal` channel, the
+      // lenses) and hair do the same with their DXT5nm `normal` channel, the
       // garment crease / skin pore detail the emulated render shows;
       // overlay.z > 0 tells the char branch the map resolved.
       macro_tex = resolve_texture(item.water_normal, 3);
@@ -9241,7 +9256,11 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
       // never take the is_decal/spec_bound paths, so the slot is theirs.
       constants[47] = char_spec;
     }
-    if (item.char_family == 1 || item.char_family == 2) {
+    const bool hair_shadow = (item.char_family == 4 || item.char_family == 5) &&
+                             g_r.world_shadow_srv != nullptr && g_r.world_shadow_in_srv;
+    if (hair_shadow) constants[47] = 1.0f;
+
+    if (item.char_family >= 1 && item.char_family <= 5 && item.char_family != 3) {
       // misc.y = normal/spec-map LOD bias to the console's 640p-gradient
       // mip (the fam 5/6 cube-bias rationale): at 4K the shader's UV
       // gradients pick ~1.75 mips finer than the game's own render, and
@@ -9477,7 +9496,9 @@ bool RenderScene(const NativeGuestOutputRenderContext& context, void* /*user_dat
     // or spec masks there).
     nrhi::TextureView* t4_view =
         (v2_flags & 8u) != 0 ? g_r.world_shadow_srv : decal_tex->srv;
-    if (normal_paired || t4_view != decal_tex->srv) {
+    if (hair_shadow) {
+      cmd->SetTexturePair(5, decal_tex->srv, g_r.world_shadow_srv);
+    } else if (normal_paired || t4_view != decal_tex->srv) {
       cmd->SetTexturePair(5, t4_view,
                           normal_paired ? pair_normal->srv : g_r.white.srv);
     } else {

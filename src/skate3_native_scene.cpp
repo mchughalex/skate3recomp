@@ -3407,8 +3407,9 @@ void CaptureHairTint(uint8_t* base, DrawItem& item) {
 //     recolor tints c22 (red mask) / c23 (blue mask).
 //   cac_hair (fam 4): light c4, key c16, ambient c14.w * 0.25, fresnel tint
 //     c17 with power c11.w, exposure c8.z, strand-alpha scale c15.x.
-//   defaulthair (fam 5): light c4, key c15, ambient c14.w * 0.25, fresnel
-//     tint c10 with power c9.z, exposure c8.z, strand-alpha scale c16.x.
+//   defaulthair (fam 5): light c4, key c10, flat ambient c14.w * 0.25,
+//     rim c15, spec c11/c12, fresnel powers c10.w/c9.z, multiplier c9.y,
+//     exposure c8.z, strand-alpha scale c16.x.
 //   vehicle (fam 6, character.livingworld_vehicles): light c9, key c15
 //     (fresnel power in c15.w), FLAT ambient = c19.w * (0.1, 0.175, 0.3)
 //     (same literal as livingworld), exposure c13.z, alpha c20.x (the
@@ -3435,8 +3436,8 @@ void CaptureHairTint(uint8_t* base, DrawItem& item) {
 // color + power, [16] = rim spec color + power, [17] = rim light color +
 // key-spec fresnel power. The spec/rim rows (defaultcharacter: spec c7,
 // rim spec c8, rim c11, fresnel powers c6.w/c5.z; cacstamp: c16/c17/c20,
-// c15.w/c14.z [+ the editor row shift]) exist on fams 1/2 only; [15].w
-// stays 0 when they fail their range gates and the PS terms vanish.
+// c15.w/c14.z [+ the editor row shift]) also carry default-hair spec/rim.
+// Hair uses SH rows0..2 for world-shadow transforms and tintA.w for its floor.
 void CaptureCharLighting(uint8_t* base, DrawItem& item) {
   if (item.char_family == 0) {
     return;
@@ -3474,7 +3475,7 @@ void CaptureCharLighting(uint8_t* base, DrawItem& item) {
       case 1: light_r = 0; key_r = 6; expo_r = 4; expo_c = 2; break;
       case 2: case 3: case 6: case 7: break;  // defaults above
       case 4: light_r = 4; key_r = 16; expo_r = 8; expo_c = 2; break;
-      case 5: light_r = 4; key_r = 15; expo_r = 8; expo_c = 2; break;
+      case 5: light_r = 4; key_r = 10; expo_r = 8; expo_c = 2; break;
     }
     light_r += plus;
     key_r += plus;
@@ -3666,15 +3667,40 @@ void CaptureCharLighting(uint8_t* base, DrawItem& item) {
       d[14 * 4 + 0] = std::clamp(row(20u, 0) * row(18u, 3), 0.0f, 1.0f);
     }
   } else {
-    // Hair: flat ambient scalar + fresnel rim tint, strand-alpha scale.
+    // Hair shares the world-shadow transform but has separate lighting models.
     const float amb = row(14u, 3) * 0.25f;
     d[2 * 4 + 3] = std::clamp(amb, 0.0f, 4.0f);
-    d[3] = std::clamp(row(fam == 4 ? 11u : 9u, fam == 4 ? 3u : 2u), 1.0f, 64.0f);
+    d[3] = std::clamp(row(fam == 4 ? 11u : 9u, fam == 4 ? 3u : 2u), 0.0f, 512.0f);
     const uint32_t fres_r = fam == 4 ? 17u : 10u;
     for (int c = 0; c < 3; ++c) {
       d[13 * 4 + c] = std::clamp(row(fres_r, uint32_t(c)), 0.0f, 8.0f);
     }
     d[13 * 4 + 3] = std::clamp(row(fam == 4 ? 15u : 16u, 0), 0.0f, 4.0f);
+    d[12 * 4 + 3] = std::clamp(row(3u, 3), 0.0f, 1.0f);
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 4; ++c) {
+        const float v = row(uint32_t(r), uint32_t(c));
+        if (!std::isfinite(v)) return;
+        d[(3 + r) * 4 + c] = v;
+      }
+    }
+    if (fam == 5) {
+      const float multiplier = row(9u, 1);
+      if (!(multiplier >= 0.0f && multiplier < 16.0f)) return;
+      d[12 * 4] = multiplier;
+      for (int c = 0; c < 4; ++c) {
+        const float ks = row(11u, uint32_t(c));
+        const float rs = row(12u, uint32_t(c));
+        const float rim = row(15u, uint32_t(c));
+        if (!(ks >= 0.0f && ks < 512.0f && rs >= 0.0f && rs < 512.0f &&
+              rim >= 0.0f && rim < 512.0f)) return;
+        d[15 * 4 + c] = ks;
+        d[16 * 4 + c] = rs;
+        d[17 * 4 + c] = rim;
+      }
+      d[17 * 4 + 3] = std::clamp(row(10u, 3), 0.0f, 512.0f);
+      d[14 * 4 + 3] = d[3];
+    }
     d[14 * 4 + 0] = 1.0f;
   }
   d[14 * 4 + 1] = float(fam);
