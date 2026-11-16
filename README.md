@@ -1,3 +1,5 @@
+<a href="https://recomplauncher.com/game/skate3recomp"><picture><source media="(prefers-color-scheme: dark)" srcset="https://recomplauncher.com/assets/press/launcher/badge-light.svg"><img alt="Get it on RecompLauncher" src="https://recomplauncher.com/assets/press/launcher/badge-dark.svg" height="48"></picture></a>
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="banner.png">
   <source media="(prefers-color-scheme: light)" srcset="banner-light.png">
