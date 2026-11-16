@@ -1,0 +1,76 @@
+{
+    "$schema": "https://recomplauncher.com/schema/recomplauncher.json",
+    "format": 1,
+    "repo": "mchughalex/skate3recomp",
+    "name": "Skate 3 Recomp",
+    "requires": [
+        "start",
+        "settings.args"
+    ],
+    "game": {
+        "kind": "iso",
+        "label": "Your Xbox 360 disc image (.iso) of Skate 3.",
+        "check": {
+            "xdvdfs": "default.xex"
+        }
+    },
+    "start": {
+        "program": [
+            "skate3.exe",
+            "skate3"
+        ],
+        "env": {
+            "SKATE3_INSTALL_ISO": "{game}"
+        }
+    },
+    "prepare": {
+        "program": [
+            "skate3.exe",
+            "skate3"
+        ],
+        "args": [
+            "--skate3_prepare_iso={game}"
+        ],
+        "label": "Game files from your disc",
+        "timeout": 1800
+    },
+    "saves": [
+        "{config}/skate3",
+        "{install}/saves"
+    ],
+    "folders": {
+        "saves": [
+            {
+                "path": "{install}/saves",
+                "if": "{install}/saves"
+            },
+            {
+                "path": "{install}",
+                "if": "{install}/portable.txt"
+            },
+            {
+                "path": "{config}/skate3"
+            }
+        ]
+    },
+    "settings": [
+        {
+            "id": "window",
+            "label": "Window mode",
+            "in": "args",
+            "help": "The game starts full screen unless told otherwise.",
+            "choices": [
+                {
+                    "label": "Game's choice",
+                    "args": []
+                },
+                {
+                    "label": "Windowed",
+                    "args": [
+                        "--fullscreen=false"
+                    ]
+                }
+            ]
+        }
+    ]
+}
