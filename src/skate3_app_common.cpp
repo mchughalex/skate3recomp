@@ -92,6 +92,9 @@ REXCVAR_DEFINE_STRING(skate3_dlc_root, "", "Skate 3",
                       "Directory containing Skate 3 DLC package files");
 REXCVAR_DEFINE_BOOL(skate3_auto_install_dlc, true, "Skate 3",
                     "Install DLC package files found in configured DLC folders");
+REXCVAR_DEFINE_STRING(skate3_prepare_iso, "", "Skate 3",
+                      "Install the game files from this Xbox 360 ISO without opening a window, "
+                      "print progress lines, then exit");
 REXCVAR_DEFINE_BOOL(skate3_ultrawide, false, "Skate 3",
                     "Ultrawide display support: the native renderer draws true widescreen "
                     "frames at the host display aspect (requires the native renderer; the "
@@ -520,6 +523,12 @@ Skate3BaseApp::~Skate3BaseApp() = default;
 
 void Skate3BaseApp::OnConfigurePaths(rex::PathConfig& paths) {
   ConfigureSkate3UserPaths(paths, user_settings_path_, profiles_path_);
+  {
+    const std::string prepare_iso = REXCVAR_GET(skate3_prepare_iso);
+    if (!prepare_iso.empty()) {
+      std::exit(skate3::RunIsoPrepare(prepare_iso, ResolveRuntimeGameDataRoot(paths)));
+    }
+  }
   config_path_ = paths.config_path;
   LoadAndNormalizeSimpleSettings(user_settings_path_, config_path_);
   Skate3InitializeFieldOfViewOverride();
