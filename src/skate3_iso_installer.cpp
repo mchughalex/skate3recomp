@@ -363,6 +363,46 @@ bool IsGameInstalled(const std::filesystem::path& game_root) {
   return std::filesystem::is_regular_file(game_root / std::string(kDefaultXex));
 }
 
+int RunIsoPrepare(const std::filesystem::path& source, const std::filesystem::path& game_root) {
+  std::string error;
+  XboxIsoReader iso;
+  std::printf("progress 0 Reading the disc\n");
+  std::fflush(stdout);
+  if (!iso.Open(source, error)) {
+    std::fprintf(stderr, "%s\n", error.c_str());
+    return 1;
+  }
+
+  const uint64_t total_bytes = iso.TotalSize();
+  std::atomic<uint64_t> copied_bytes{0};
+  std::atomic<bool> finished{false};
+  std::thread reporter([&]() {
+    while (!finished.load()) {
+      const double fraction =
+          total_bytes ? static_cast<double>(copied_bytes.load()) / static_cast<double>(total_bytes)
+                      : 0.0;
+      std::printf("progress %.2f Extracting game files\n", std::min<double>(fraction, 0.99));
+      std::fflush(stdout);
+      std::this_thread::sleep_for(std::chrono::milliseconds(500));
+    }
+  });
+
+  bool ok = iso.ExtractAll(game_root, copied_bytes, error);
+  finished = true;
+  reporter.join();
+  if (ok && !IsGameInstalled(game_root)) {
+    error = "Installation completed, but default.xex was not found in the install directory.";
+    ok = false;
+  }
+  if (!ok) {
+    std::fprintf(stderr, "%s\n", error.c_str());
+    return 1;
+  }
+  std::printf("progress 1 Game files ready\n");
+  std::fflush(stdout);
+  return 0;
+}
+
 void ShowRexglueIsoInstallWizard(rex::ui::ImGuiDrawer* drawer, rex::PathConfig runtime_paths,
                                  std::function<void(rex::PathConfig)> complete) {
   // Copied up front: the constructor call below move-captures runtime_paths,
